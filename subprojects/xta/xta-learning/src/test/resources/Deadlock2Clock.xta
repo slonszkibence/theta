@@ -1,0 +1,24 @@
+clock x;
+clock y;
+
+process Deadlock2ClockTest() {
+    state
+        idle,
+        A { x <= 3 },
+        B { y <= 2 },
+        C { x <= 5 },
+        D;
+
+    init idle;
+
+    trans
+        idle -> A { guard x == 0 and y == 0; assign x = 0, y = 0; },
+        A -> C { guard x >= 2 and x <= 3; },
+        C -> D { guard x <= 4; assign x = 0, y = 0; },
+
+        A -> B { guard x <= 2 and y <= 1; },
+        B -> C { guard y >= 4; };
+
+}
+
+system Deadlock2ClockTest;

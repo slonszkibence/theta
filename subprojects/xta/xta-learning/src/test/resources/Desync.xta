@@ -1,0 +1,17 @@
+clock x;
+clock y;
+
+process DesyncTest() {
+    state
+        A,
+        B,
+        C { y <= 2 },
+        D;
+
+    init A;
+
+    trans
+        A -> B { assign x = 0; },
+        B -> C { guard x == 2; assign y = 0; },
+        C -> D { guard x == 5; };
+} system DesyncTest;

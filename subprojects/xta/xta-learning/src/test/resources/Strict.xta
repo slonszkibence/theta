@@ -1,0 +1,16 @@
+clock x;
+
+process StrictTest() {
+    state
+        idle,
+        wait_state { x < 2 },
+        goal;
+
+    init idle;
+
+    trans
+        idle -> wait_state { assign x = 0; },
+        wait_state -> goal { guard x == 2; };
+}
+
+system StrictTest;

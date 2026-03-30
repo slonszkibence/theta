@@ -1,0 +1,17 @@
+clock x;
+clock y;
+
+process DiagonalTest() {
+    state
+        idle,
+        active,
+        goal;
+
+    init idle;
+
+    trans
+        idle -> active { assign x = 0, y = 0; },
+        active -> goal { guard x - y >= 2; };
+}
+
+system DiagonalTest;

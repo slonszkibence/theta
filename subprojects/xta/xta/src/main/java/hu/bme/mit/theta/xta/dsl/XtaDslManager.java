@@ -28,7 +28,6 @@ import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.dsl.gen.XtaDslLexer;
 import hu.bme.mit.theta.xta.dsl.gen.XtaDslParser;
 import hu.bme.mit.theta.xta.dsl.gen.XtaDslParser.XtaContext;
-
 public final class XtaDslManager {
 
 	private XtaDslManager() {

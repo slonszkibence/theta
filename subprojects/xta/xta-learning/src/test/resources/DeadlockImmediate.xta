@@ -1,0 +1,13 @@
+clock x;
+
+process DeadlockImmediateTest() {
+    state
+        idle,
+        A { x <= 2 },
+        B;
+    init idle;
+
+    trans
+        idle -> A { guard x == 0; assign x = 0; },
+        A -> B { guard x >= 5; };
+} system DeadlockImmediateTest;

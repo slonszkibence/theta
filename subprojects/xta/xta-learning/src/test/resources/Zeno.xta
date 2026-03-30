@@ -1,0 +1,15 @@
+clock x;
+
+process ZenoTest() {
+    state
+        idle,
+        zeno_state;
+
+    init idle;
+
+    trans
+        idle -> zeno_state { assign x = 0; },
+        zeno_state -> zeno_state { guard x == 0; assign x = 0; };
+}
+
+system ZenoTest;

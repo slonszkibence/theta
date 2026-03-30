@@ -1,0 +1,16 @@
+clock x;
+
+process Deadlock1ClockTest() {
+    state
+        idle,
+        trap { x <= 3 },
+        safe;
+
+    init idle;
+
+    trans
+        idle -> trap { guard x == 0; assign x = 0; },
+        trap -> safe { guard x >= 5; };
+}
+
+system Deadlock1ClockTest;

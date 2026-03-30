@@ -1,0 +1,15 @@
+clock x;
+
+process PointInterval() {
+    state
+        A,
+        B,
+        C;
+
+    init A;
+
+    trans
+        A -> B { guard x == 3; assign x = 0; },
+        B -> C { guard x == 3; };
+}
+system PointInterval;
