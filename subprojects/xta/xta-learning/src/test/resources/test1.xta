@@ -19,18 +19,17 @@ process ComplexBranchingTest_Template() {
         idle -> A { assign x = 0, y = 0; },
 
         // 2. Elágazás! (Választhatsz, melyik úton mész tovább)
-        A -> B { guard x >= 2; assign x = 0; },  // B ág: x-et nullázzuk
-        A -> C { guard y >= 3; assign y = 0; },  // C ág: y-t nullázzuk
+        A -> B { guard x >= 2; assign x = 0; },
+        A -> C { guard y >= 3; assign y = 0; },
 
         // 3. A "B" ág folytatása (Itt x = 0, y pedig legalább 2, tehát y - x >= 2)
-        B -> D { guard x - y >= 2; },   // CSAPDA! Fizikailag lehetetlen.
+        B -> D { guard x - y >= 2; },   // CSAPDA!
         B -> E { guard y - x >= 2; },  // LEGÁLIS LÉPÉS.
 
         // 4. A "C" ág folytatása (Itt y = 0, x pedig legalább 3, tehát x - y >= 3)
         C -> goal { guard x - y >= 2; }, // LEGÁLIS LÉPÉS.
-        C -> F { guard y - x >= 1; }, // CSAPDA! Fizikailag lehetetlen.
+        C -> F { guard y - x >= 1; }, // CSAPDA!
 
-        // 5. A "B" ág sikeres befejezése
         E -> goal { guard x >= 1; };
 }
 

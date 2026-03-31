@@ -1,6 +1,8 @@
 package hu.bme.mit.theta.xta.learning;
 
 import de.learnlib.algorithm.ttt.dfa.TTTLearnerDFABuilder;
+import de.learnlib.oracle.equivalence.DFAWMethodEQOracle;
+import de.learnlib.oracle.equivalence.EQOracleChain;
 import de.learnlib.query.Query;
 import de.learnlib.sul.SUL;
 import de.learnlib.algorithm.LearningAlgorithm;
@@ -34,7 +36,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         System.out.println("1. XTA modell betöltése...");
-        XtaSystem system = XtaDslManager.createSystem(new FileInputStream("subprojects/xta/xta-learning/src/test/resources/Deadlock2Clock.xta"));
+        XtaSystem system = XtaDslManager.createSystem(new FileInputStream("subprojects/xta/xta-learning/src/test/resources/test1.xta"));
         XtaProcess firstProcess = system.getProcesses().get(0);
 
         System.out.println("\n=================================================");
@@ -74,6 +76,14 @@ public class Main {
             for (Query<String, Boolean> query : queries) {
                 queryCounter[0]++;
 
+                if (structuralShield != null) {
+                    boolean isStructurallyValid = structuralShield.accepts(query.getInput());
+                    if (!isStructurallyValid) {
+                        query.answer(true);
+                        continue;
+                    }
+                }
+
                 mappedSul.pre();
                 boolean accepted = true;
                 for (String symbol : query.getInput()) {
@@ -95,9 +105,16 @@ public class Main {
 
         XtaInclusionOracle inclusionOracle = XtaInclusionOracle.create(ceilings, mapper);
 
+        DFAWMethodEQOracle<String> wMethodOracle =
+                new DFAWMethodEQOracle<>(mqOracle, 2);
+
+        EQOracleChain<DFA<?, String>, String, Boolean> combinedOracle = new EQOracleChain<>();
+        combinedOracle.addOracle(wMethodOracle);
+        combinedOracle.addOracle(inclusionOracle);
+
         System.out.println("5. Tanulási folyamat elindítása...");
 
-        Experiment.DFAExperiment<String> experiment = new Experiment.DFAExperiment<>(learner, inclusionOracle, alphabet);
+        Experiment.DFAExperiment<String> experiment = new Experiment.DFAExperiment<>(learner, combinedOracle, alphabet);
         experiment.run();
 
         System.out.println("------------------------------------------------");

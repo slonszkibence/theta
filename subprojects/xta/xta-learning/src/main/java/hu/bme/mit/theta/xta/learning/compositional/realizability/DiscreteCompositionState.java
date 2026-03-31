@@ -7,17 +7,17 @@ import hu.bme.mit.theta.xta.analysis.XtaState;
 import java.util.Objects;
 
 
-public class CompositionState<S> implements State {
+public class DiscreteCompositionState<S> implements State {
     private final XtaState<ExplState> xtaState;
     private final S dfaState;
 
-    private CompositionState(XtaState<ExplState> xtaState, S dfaState) {
+    private DiscreteCompositionState(XtaState<ExplState> xtaState, S dfaState) {
         this.xtaState = xtaState;
         this.dfaState = dfaState;
     }
 
-    public CompositionState<S> create(XtaState<ExplState> xtaState, S dfaState) {
-        return new CompositionState<>(xtaState, dfaState);
+    public static<S> DiscreteCompositionState<S> create(XtaState<ExplState> xtaState, S dfaState) {
+        return new DiscreteCompositionState<>(xtaState, dfaState);
     }
 
     public S getDfaState() {
@@ -35,7 +35,7 @@ public class CompositionState<S> implements State {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        CompositionState<?> that = (CompositionState<?>) o;
+        DiscreteCompositionState<?> that = (DiscreteCompositionState<?>) o;
         return Objects.equals(xtaState, that.xtaState) && Objects.equals(dfaState, that.dfaState);
     }
 
