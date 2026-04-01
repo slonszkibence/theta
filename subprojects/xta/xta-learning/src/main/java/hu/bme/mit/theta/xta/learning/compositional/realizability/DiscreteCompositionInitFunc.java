@@ -14,11 +14,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class DiscreteCompositionInitFunc<S, P extends Prec> implements InitFunc<DiscreteCompositionState<S>, P> {
     private final InitFunc<XtaState<ExplState>, P> innerInitFunc;
-    private final DFA<S, String> hypothesis;
+    private final DFA<S, String> productDfa;
 
-    private DiscreteCompositionInitFunc(InitFunc<XtaState<ExplState>, P> innerInitFunc, DFA<S, String> hypothesis) {
+    private DiscreteCompositionInitFunc(InitFunc<XtaState<ExplState>, P> innerInitFunc, DFA<S, String> productDfa) {
         this.innerInitFunc = checkNotNull(innerInitFunc);
-        this.hypothesis = checkNotNull(hypothesis);
+        this.productDfa = checkNotNull(productDfa);
     }
 
     public static<S, P extends Prec> DiscreteCompositionInitFunc<S, P>
@@ -28,7 +28,7 @@ public class DiscreteCompositionInitFunc<S, P extends Prec> implements InitFunc<
 
     @Override
     public Collection<DiscreteCompositionState<S>> getInitStates(P prec) {
-        S dfaInitState = hypothesis.getInitialState();
+        S dfaInitState = productDfa.getInitialState();
         Collection<? extends XtaState<ExplState>> xtaInitStates = innerInitFunc.getInitStates(prec);
 
         Collection<DiscreteCompositionState<S>> result = new ArrayList<>();

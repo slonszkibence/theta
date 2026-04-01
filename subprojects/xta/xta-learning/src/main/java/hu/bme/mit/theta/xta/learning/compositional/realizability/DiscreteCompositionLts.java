@@ -25,17 +25,17 @@ import java.util.List;
 
 public class DiscreteCompositionLts<S> implements LTS<DiscreteCompositionState<S>, XtaAction> {
     private final Alphabet<String> alphabet;
-    private final DFA<S, String> hypothesis;
+    private final DFA<S, String> productDfa;
     private final LTS<XtaState<?>, XtaAction> innerLts;
 
-    private DiscreteCompositionLts(XtaSystem xtaSystem, Alphabet<String> alphabet, DFA<S, String> hypothesis) {
+    private DiscreteCompositionLts(XtaSystem xtaSystem, Alphabet<String> alphabet, DFA<S, String> productDfa) {
         this.alphabet = checkNotNull(alphabet);
-        this.hypothesis = checkNotNull(hypothesis);
+        this.productDfa = checkNotNull(productDfa);
         this.innerLts = XtaLts.create(xtaSystem);
     }
 
-    public static<S> DiscreteCompositionLts<S> create(XtaSystem xtaSystem, Alphabet<String> alphabet, DFA<S, String> hypothesis) {
-        return new DiscreteCompositionLts<>(xtaSystem, alphabet, hypothesis);
+    public static<S> DiscreteCompositionLts<S> create(XtaSystem xtaSystem, Alphabet<String> alphabet, DFA<S, String> productDfa) {
+        return new DiscreteCompositionLts<>(xtaSystem, alphabet, productDfa);
     }
 
     @Override
@@ -73,9 +73,9 @@ public class DiscreteCompositionLts<S> implements LTS<DiscreteCompositionState<S
             String symbol = XtaTimingMapper.generateSymbolForEdge(edge);
 
             if (alphabet.containsSymbol(symbol)) {
-                S nextDfaState = hypothesis.getTransition(dfaState, symbol);
+                S nextDfaState = productDfa.getTransition(dfaState, symbol);
 
-                return nextDfaState != null && hypothesis.isAccepting(nextDfaState);
+                return nextDfaState != null && productDfa.isAccepting(nextDfaState);
             }
         }
         return true;

@@ -6,6 +6,7 @@ import hu.bme.mit.theta.analysis.expl.ExplState;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.XtaState;
+
 import net.automatalib.alphabet.Alphabet;
 import net.automatalib.automaton.fsa.DFA;
 
@@ -18,22 +19,22 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class DiscreteCompositionTransFunc<S, P extends Prec>
         implements TransFunc<DiscreteCompositionState<S>, XtaAction, P> {
     private final TransFunc<XtaState<ExplState>, XtaAction, P> innerTransFunc;
-    private final DFA<S, String> hypothesis;
+    private final DFA<S, String> productDfa;
     private final Alphabet<String> alphabet;
 
     private DiscreteCompositionTransFunc(TransFunc<XtaState<ExplState>, XtaAction, P> innerTransFunc,
-                                         DFA<S, String> hypothesis,
+                                         DFA<S, String> productDfa,
                                          Alphabet<String> alphabet) {
         this.innerTransFunc = checkNotNull(innerTransFunc);
-        this.hypothesis = checkNotNull(hypothesis);
+        this.productDfa = checkNotNull(productDfa);
         this.alphabet = checkNotNull(alphabet);
     }
 
     public static <S, P extends Prec> DiscreteCompositionTransFunc<S, P> create(
             TransFunc<XtaState<ExplState>, XtaAction, P> innerTransFunc,
-            DFA<S, String> hypothesis,
+            DFA<S, String> productDfa,
             Alphabet<String> alphabet) {
-        return new DiscreteCompositionTransFunc<>(innerTransFunc, hypothesis, alphabet);
+        return new DiscreteCompositionTransFunc<>(innerTransFunc, productDfa, alphabet);
     }
 
 
@@ -48,7 +49,7 @@ public class DiscreteCompositionTransFunc<S, P extends Prec>
 
         S nextDfaState = state.getDfaState();
         if (symbol != null && alphabet.containsSymbol(symbol)) {
-            nextDfaState = hypothesis.getTransition(state.getDfaState(), symbol);
+            nextDfaState = productDfa.getTransition(state.getDfaState(), symbol);
         }
 
         Collection<DiscreteCompositionState<S>> result = new ArrayList<>();
