@@ -6,7 +6,6 @@ import hu.bme.mit.theta.xta.Guard;
 import hu.bme.mit.theta.xta.Update;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
-import hu.bme.mit.theta.xta.analysis.XtaAction;
 
 import java.util.List;
 import java.util.Map;
@@ -92,7 +91,8 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
     }
 
     public static String generateSymbolForEdge(XtaProcess.Edge edge) {
-        return edge.getSource().getName() + "->" + edge.getTarget().getName();
+        return edge.getSource().getName() + "->" + edge.getTarget().getName() +
+                "_" + Math.abs(System.identityHashCode(edge));
     }
 
     private List<Guard.ClockGuard> getClockGuardsForEdge(XtaProcess.Edge edge) {

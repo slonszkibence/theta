@@ -20,6 +20,8 @@ import hu.bme.mit.theta.xta.analysis.XtaAction;
 import java.util.function.Predicate;
 
 public class DiscreteCompositionCheckerFactory {
+    private DiscreteCompositionCheckerFactory() {}
+
     public static<S, P extends Prec> SafetyChecker<DiscreteCompositionState<S>, XtaAction, P> create(
             DiscreteCompositionStrategy strategy,
             DiscreteCompositionAnalysis<S, P> analysis,

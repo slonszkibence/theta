@@ -1,6 +1,5 @@
 package hu.bme.mit.theta.xta.learning.compositional.realizability;
 
-import hu.bme.mit.theta.analysis.State;
 import hu.bme.mit.theta.analysis.Prec;
 import hu.bme.mit.theta.analysis.Analysis;
 import hu.bme.mit.theta.analysis.InitFunc;
@@ -36,7 +35,7 @@ public class DiscreteCompositionAnalysis<S, P extends Prec>
         this.initFunc = DiscreteCompositionInitFunc.create(innerInitFunc, productDFA);
     }
 
-    public static <S extends State, P extends Prec> DiscreteCompositionAnalysis<S, P>
+    public static <S, P extends Prec> DiscreteCompositionAnalysis<S, P>
     create(PartialOrd<DiscreteCompositionState<S>> partialOrd,
            Alphabet<String> alphabet,
            DFA<S, String> productDFA,
