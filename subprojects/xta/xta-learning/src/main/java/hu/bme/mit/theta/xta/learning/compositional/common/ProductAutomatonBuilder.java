@@ -44,6 +44,11 @@ public class ProductAutomatonBuilder {
                 S1 succA = untimedA.getSuccessor(curr.s1, symbol);
                 S2 succH = learnedH.getSuccessor(curr.s2, symbol);
 
+                if (symbol.contains("->ErrorLoc")) {
+                    if (succA == null) succA = curr.s1;
+                    if (succH == null) succH = curr.s2;
+                }
+
                 if (succA != null && succH != null) {
                     StatePair<S1, S2> succPair = new StatePair<>(succA, succH);
 

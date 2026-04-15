@@ -1,37 +1,43 @@
 package hu.bme.mit.theta.xta.learning;
 
 import de.learnlib.util.Experiment;
+import hu.bme.mit.theta.analysis.LTS;
+import hu.bme.mit.theta.analysis.PartialOrd;
+import hu.bme.mit.theta.analysis.State;
+import hu.bme.mit.theta.analysis.Trace;
+import hu.bme.mit.theta.analysis.algorithm.ARG;
 import hu.bme.mit.theta.analysis.algorithm.SafetyChecker;
 import hu.bme.mit.theta.analysis.algorithm.SafetyResult;
 import hu.bme.mit.theta.analysis.expl.ExplState;
+import hu.bme.mit.theta.analysis.prod2.Prod2Analysis;
+import hu.bme.mit.theta.analysis.prod2.Prod2Prec;
+import hu.bme.mit.theta.analysis.prod2.Prod2State;
 import hu.bme.mit.theta.analysis.unit.UnitPrec;
+import hu.bme.mit.theta.analysis.zone.ZonePrec;
+import hu.bme.mit.theta.analysis.zone.ZoneState;
 import hu.bme.mit.theta.core.decl.VarDecl;
 import hu.bme.mit.theta.core.type.rattype.RatType;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.XtaAnalysis;
+import hu.bme.mit.theta.xta.analysis.XtaLts;
 import hu.bme.mit.theta.xta.analysis.expl.XtaExplAnalysis;
+import hu.bme.mit.theta.xta.analysis.zone.XtaZoneAnalysis;
 import hu.bme.mit.theta.xta.learning.algorithm.EQOracleFactory;
 import hu.bme.mit.theta.xta.learning.algorithm.EQOracleType;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmFactory;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
-import hu.bme.mit.theta.xta.learning.compositional.common.ProductAutomatonBuilder;
 import hu.bme.mit.theta.xta.learning.compositional.common.UntimedAutomatonBuilder;
 import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
+import hu.bme.mit.theta.xta.learning.compositional.dfa.*;
 import hu.bme.mit.theta.xta.learning.compositional.inclusion.XtaInclusionOracle;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.DiscreteCompositionState;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.DiscreteCompositionStrategy;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.DiscreteCompositionLts;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.DiscreteCompositionAnalysis;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.DiscreteCompositionCheckerFactory;
 import hu.bme.mit.theta.xta.learning.compositional.sul.XtaTPrimeSul;
 
 import net.automatalib.alphabet.Alphabet;
 import net.automatalib.alphabet.impl.Alphabets;
 import net.automatalib.automaton.fsa.DFA;
 import net.automatalib.automaton.fsa.impl.FastDFA;
-import net.automatalib.automaton.fsa.impl.FastDFAState;
 
 import de.learnlib.algorithm.LearningAlgorithm;
 import de.learnlib.mapper.MappedSUL;
@@ -41,14 +47,18 @@ import de.learnlib.query.Query;
 import de.learnlib.sul.SUL;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class XtaLearningCheckerConfig {
     private final XtaSystem xtaSystem;
     private final LearningAlgorithmType learningAlgorithmType;
     private final EQOracleType eqOracleType;
-    private final DiscreteCompositionStrategy checkerStrategy;
+    private final XtaDfaCheckerStrategy checkerStrategy;
     private final int eqMaxDepth;
     private final int eqRandomMinLength;
     private final int eqRandomMaxLength;
@@ -57,29 +67,30 @@ public class XtaLearningCheckerConfig {
     private XtaLearningCheckerConfig(XtaSystem xtaSystem,
                                      LearningAlgorithmType learningAlgorithmType,
                                      EQOracleType eqOracleType,
-                                     DiscreteCompositionStrategy checkerStrategy,
+                                     XtaDfaCheckerStrategy checkerStrategy,
                                      int eqMaxDepth,
                                      int eqRandomMinLength,
                                      int eqRandomMaxLength,
                                      int eqRandomMaxTests) {
-        this.xtaSystem = xtaSystem;
-        this.learningAlgorithmType = learningAlgorithmType;
-        this.eqOracleType = eqOracleType;
-        this.checkerStrategy = checkerStrategy;
+        this.xtaSystem = checkNotNull(xtaSystem);
+        this.learningAlgorithmType = checkNotNull(learningAlgorithmType);
+        this.eqOracleType = checkNotNull(eqOracleType);
+        this.checkerStrategy = checkNotNull(checkerStrategy);
         this.eqMaxDepth = eqMaxDepth;
         this.eqRandomMinLength = eqRandomMinLength;
         this.eqRandomMaxLength = eqRandomMaxLength;
         this.eqRandomMaxTests = eqRandomMaxTests;
     }
 
-    public static XtaLearningCheckerConfig create(XtaSystem xtaSystem,
-                                                  LearningAlgorithmType learningAlgorithmType,
-                                                  EQOracleType eqOracleType,
-                                                  DiscreteCompositionStrategy checkerStrategy,
-                                                  int eqMaxDepth,
-                                                  int eqRandomMinLength,
-                                                  int eqRandomMaxLength,
-                                                  int eqRandomMaxTests) {
+    public static XtaLearningCheckerConfig create(
+            XtaSystem xtaSystem,
+            LearningAlgorithmType learningAlgorithmType,
+            EQOracleType eqOracleType,
+            XtaDfaCheckerStrategy checkerStrategy,
+            int eqMaxDepth,
+            int eqRandomMinLength,
+            int eqRandomMaxLength,
+            int eqRandomMaxTests) {
         return new XtaLearningCheckerConfig(
                 xtaSystem,
                 learningAlgorithmType,
@@ -92,11 +103,17 @@ public class XtaLearningCheckerConfig {
         );
     }
 
-    public SafetyResult<DiscreteCompositionState<FastDFAState>, XtaAction> check() {
+    public SafetyResult<?, XtaAction> check() {
         XtaProcess firstProcess = xtaSystem.getProcesses().get(0);
 
-        Map<VarDecl<RatType>, Integer> ceilings = computeCeilings(xtaSystem);
+        Set<String> shieldSymbols = new HashSet<>();
+        for (XtaProcess.Loc loc : firstProcess.getLocs()) {
+            for (XtaProcess.Edge edge : loc.getOutEdges()) {
+                shieldSymbols.add(XtaTimingMapper.generateSymbolForEdge(edge));
+            }
+        }
 
+        Map<VarDecl<RatType>, Integer> ceilings = computeCeilings(xtaSystem);
         XtaTPrimeSul sul = XtaTPrimeSul.create(ceilings);
         XtaTimingMapper<Boolean, Boolean> mapper = XtaTimingMapper.create(xtaSystem, output -> output);
         Alphabet<String> alphabet = Alphabets.fromCollection(mapper.getAlphabet());
@@ -126,48 +143,28 @@ public class XtaLearningCheckerConfig {
 
         LearningAlgorithm.DFALearner<String> learner = LearningAlgorithmFactory.create(learningAlgorithmType, alphabet, mqOracle);
         XtaInclusionOracle inclusionOracle = XtaInclusionOracle.create(ceilings, mapper);
-        EquivalenceOracle<DFA<?, String>, String, Boolean> eqOracle =
-                EQOracleFactory.create(
-                        eqOracleType,
-                        mqOracle,
-                        inclusionOracle,
-                        eqMaxDepth,
-                        eqRandomMinLength,
-                        eqRandomMaxLength,
-                        eqRandomMaxTests);
 
-        Experiment.DFAExperiment<String> experiment = new Experiment.DFAExperiment<>(learner, eqOracle, alphabet);
-        experiment.run();
-        DFA<?, String> resultDFA = experiment.getFinalHypothesis();
-
-        FastDFA<String> productDFA = ProductAutomatonBuilder.buildProduct(untimedAutomaton, resultDFA, alphabet);
-
-
-        Predicate<DiscreteCompositionState<FastDFAState>> targetPred = state ->
-            state.getXtaState().isError();
-
-        XtaExplAnalysis explAnalysis = XtaExplAnalysis.create(xtaSystem);
-        XtaAnalysis<ExplState, UnitPrec> xtaAnalysis = XtaAnalysis.create(xtaSystem, explAnalysis);
-
-        DiscreteCompositionAnalysis<FastDFAState, UnitPrec> analysis = DiscreteCompositionAnalysis.create(
-                DiscreteCompositionState::equals,
-                alphabet,
-                productDFA,
-                xtaAnalysis.getInitFunc(),
-                xtaAnalysis.getTransFunc()
+        ModelCheckingEQOracle modelCheckingEqOracle = new ModelCheckingEQOracle(
+                xtaSystem, alphabet, inclusionOracle, mappedSul, checkerStrategy, shieldSymbols
         );
 
-        DiscreteCompositionLts<FastDFAState> lts = DiscreteCompositionLts.create(xtaSystem, alphabet, productDFA);
+        Experiment.DFAExperiment<String> experiment = new Experiment.DFAExperiment<>(learner, modelCheckingEqOracle, alphabet);
 
-        SafetyChecker<DiscreteCompositionState<FastDFAState>, XtaAction, UnitPrec> checker =
-                DiscreteCompositionCheckerFactory.create(
-                        checkerStrategy,
-                        analysis,
-                        lts,
-                        targetPred
-                );
+        PartialOrd<hu.bme.mit.theta.analysis.State> dummyOrd = (s1, s2) -> false;
+        ARG<hu.bme.mit.theta.analysis.State, XtaAction> dummyArg =
+                ARG.create(dummyOrd);
 
-        return checker.check(UnitPrec.getInstance());
+        try {
+            experiment.run();
+            return SafetyResult.safe(dummyArg);
+
+        } catch (RealBugFoundException e) {
+            @SuppressWarnings("unchecked")
+            Trace<State, XtaAction> trace =
+                    (Trace<State, XtaAction>) e.getTrace();
+
+            return SafetyResult.unsafe(trace, dummyArg);
+        }
     }
 
     private static Map<VarDecl<RatType>, Integer> computeCeilings(XtaSystem system) {

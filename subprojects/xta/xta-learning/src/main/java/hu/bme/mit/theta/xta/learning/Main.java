@@ -48,7 +48,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
 
         System.out.println("1. XTA modell betöltése...");
-        XtaSystem system = XtaDslManager.createSystem(new FileInputStream("subprojects/xta/xta-learning/src/test/resources/test1.xta"));
+        XtaSystem system = XtaDslManager.createSystem(new FileInputStream("subprojects/xta/xta-learning/src/test/resources/model/Complexbranching.xta"));
         XtaProcess firstProcess = system.getProcesses().get(0);
 
         System.out.println("\n=================================================");
