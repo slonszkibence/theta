@@ -15,6 +15,8 @@ import hu.bme.mit.theta.analysis.prod2.Prod2State;
 import hu.bme.mit.theta.analysis.unit.UnitPrec;
 import hu.bme.mit.theta.analysis.zone.ZonePrec;
 import hu.bme.mit.theta.analysis.zone.ZoneState;
+import hu.bme.mit.theta.common.logging.ConsoleLogger;
+import hu.bme.mit.theta.common.logging.Logger;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
@@ -57,6 +59,7 @@ public class ModelCheckingEQOracle implements EquivalenceOracle<DFA<?, String>, 
     @Override
     @SuppressWarnings("unchecked")
     public DefaultQuery<String, Boolean> findCounterExample(DFA<?, String> hypothesis, Collection<? extends String> inputs) {
+        Logger logger = new ConsoleLogger(Logger.Level.SUBSTEP);
 
         XtaExplAnalysis explAnalysis = XtaExplAnalysis.create(xtaSystem);
         XtaZoneAnalysis zoneAnalysis = XtaZoneAnalysis.create(xtaSystem.getInitLocs());
@@ -82,7 +85,7 @@ public class ModelCheckingEQOracle implements EquivalenceOracle<DFA<?, String>, 
                 state -> state.getXtaState().isError();
 
         SafetyChecker<XtaDfaState<Prod2State<ExplState, ZoneState>, Object>, XtaAction, Prod2Prec<UnitPrec, ZonePrec>> checker =
-                XtaDfaCheckerFactory.create(strategy, lustaAnalysis, lts, targetPred);
+                XtaDfaCheckerFactory.create(strategy, lustaAnalysis, lts, targetPred, logger);
 
         ZonePrec zonePrec = ZonePrec.of(xtaSystem.getClockVars());
         Prod2Prec<UnitPrec, ZonePrec> prod2Prec = Prod2Prec.of(UnitPrec.getInstance(), zonePrec);

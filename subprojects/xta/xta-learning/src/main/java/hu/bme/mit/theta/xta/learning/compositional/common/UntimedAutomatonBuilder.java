@@ -18,7 +18,6 @@ public class UntimedAutomatonBuilder {
         FastDFA<String> dfa = new FastDFA<>(alphabet);
         Map<XtaProcess.Loc, FastDFAState> stateMap = new HashMap<>();
 
-        // 1. Állapotok létrehozása (minden állapot elfogadó)
         for (XtaProcess.Loc loc : process.getLocs()) {
             FastDFAState dfaState = dfa.addState(true);
             stateMap.put(loc, dfaState);
@@ -28,7 +27,6 @@ public class UntimedAutomatonBuilder {
             }
         }
 
-        // 2. A folyamat SAJÁT éleinek kigyűjtése és hozzáadása a DFA-hoz
         Set<String> processSymbols = new HashSet<>();
         for (XtaProcess.Loc loc : process.getLocs()) {
             for (XtaProcess.Edge edge : loc.getOutEdges()) {
@@ -38,9 +36,6 @@ public class UntimedAutomatonBuilder {
             }
         }
 
-        // 3. A KÖRNYEZET lépéseinek engedélyezése (A Kulcslépés!)
-        // Azokra a szimbólumokra, amik nem a pajzs folyamathoz tartoznak (pl. ErrorProc, p1, p2),
-        // húzunk egy hurokélt, így a pajzs "egy helyben toporog", miközben a többiek lépnek.
         for (XtaProcess.Loc loc : process.getLocs()) {
             FastDFAState dfaState = stateMap.get(loc);
             for (String symbol : alphabet) {

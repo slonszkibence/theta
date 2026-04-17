@@ -4,6 +4,7 @@ import de.learnlib.sul.SULMapper;
 
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
+import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,8 +21,7 @@ public class XtaSULMapper<AO, CO> implements SULMapper<String, AO, XtaProcess.Ed
 
         for (XtaProcess process : xtaSystem.getProcesses()) {
             for (var edge : process.getEdges()) {
-                String edgeName = process.getName() + "_" + edge.getSource().getName() + "->"
-                        + edge.getTarget().getName();
+                String edgeName = XtaTimingMapper.generateSymbolForEdge(edge);
                 edgeDictionary.put(edgeName, edge);
             }
         }

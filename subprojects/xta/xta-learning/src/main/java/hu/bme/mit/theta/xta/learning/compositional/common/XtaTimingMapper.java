@@ -91,8 +91,10 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
     }
 
     public static String generateSymbolForEdge(XtaProcess.Edge edge) {
-        return edge.getSource().getName() + "->" + edge.getTarget().getName() +
-                "_" + Math.abs(System.identityHashCode(edge));
+        if (edge.getSync().isPresent()) {
+            return edge.getSync().get().getLabel().getName();
+        }
+        return edge.getSource().getName() + "->" + edge.getTarget().getName();
     }
 
     private List<Guard.ClockGuard> getClockGuardsForEdge(XtaProcess.Edge edge) {

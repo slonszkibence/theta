@@ -2,6 +2,7 @@ package hu.bme.mit.theta.xta.learning.compositional.dfa;
 
 import hu.bme.mit.theta.analysis.Prec;
 import hu.bme.mit.theta.analysis.State;
+import hu.bme.mit.theta.analysis.Trace;
 import hu.bme.mit.theta.analysis.TransFunc;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
@@ -44,22 +45,21 @@ public class XtaDfaTransFunc<S extends State, P extends Prec, DfaState>
     @Override
     public Collection<XtaDfaState<S, DfaState>> getSuccStates(XtaDfaState<S, DfaState> xtaDfaState, XtaAction xtaAction, P prec) {
         DfaState dfaState = xtaDfaState.getDfaState();
-        List<XtaProcess.Edge> edges = extractEdgesFromAction(xtaAction);
 
-        for (XtaProcess.Edge edge : edges) {
-            String symbol = XtaTimingMapper.generateSymbolForEdge(edge);
+        XtaProcess.Edge representativeEdge = null;
+        if (xtaAction.isBasic()) representativeEdge = xtaAction.asBasic().getEdge();
+        else if (xtaAction.isBinary()) representativeEdge = xtaAction.asBinary().getEmitEdge();
+        else if (xtaAction.isBroadcast()) representativeEdge = xtaAction.asBroadcast().getEmitEdge();
 
-            if (shieldSymbols.contains(symbol)) {
-                continue;
-            }
-            if (symbol.contains("ErrorLoc")) {
-                continue;
-            }
+        if (representativeEdge != null) {
+            String symbol = XtaTimingMapper.generateSymbolForEdge(representativeEdge);
 
-            if (alphabet.containsSymbol(symbol)) {
-                dfaState = dfa.getSuccessor(dfaState, symbol);
-                if (dfaState == null) {
-                    return Collections.emptyList();
+            if (!shieldSymbols.contains(symbol) && !symbol.contains("ErrorLoc")) {
+                if (alphabet.containsSymbol(symbol)) {
+                    dfaState = dfa.getSuccessor(dfaState, symbol);
+                    if (dfaState == null) {
+                        return Collections.emptyList();
+                    }
                 }
             }
         }
@@ -72,17 +72,26 @@ public class XtaDfaTransFunc<S extends State, P extends Prec, DfaState>
                 .collect(Collectors.toList());
     }
 
-    private List<XtaProcess.Edge> extractEdgesFromAction(XtaAction xtaAction) {
-        List<XtaProcess.Edge> edges = new ArrayList<>();
-        if (xtaAction.isBasic()) {
-            edges.add(xtaAction.asBasic().getEdge());
-        } else if (xtaAction.isBinary()) {
-            edges.add(xtaAction.asBinary().getEmitEdge());
-            edges.add(xtaAction.asBinary().getRecvEdge());
-        } else if (xtaAction.isBroadcast()) {
-            edges.add(xtaAction.asBroadcast().getEmitEdge());
-            edges.addAll(xtaAction.asBroadcast().getRecvEdges());
+    private List<String> extractWordFromTrace(Trace<?, XtaAction> trace) {
+        List<String> word = new ArrayList<>();
+        for (XtaAction action : trace.getActions()) {
+            XtaProcess.Edge representativeEdge = null;
+
+            if (action.isBasic()) {
+                representativeEdge = action.asBasic().getEdge();
+            } else if (action.isBinary()) {
+                representativeEdge = action.asBinary().getEmitEdge(); // Csak az emit!
+            } else if (action.isBroadcast()) {
+                representativeEdge = action.asBroadcast().getEmitEdge(); // Csak az emit!
+            }
+
+            if (representativeEdge != null) {
+                String symbol = XtaTimingMapper.generateSymbolForEdge(representativeEdge);
+                if (alphabet.containsSymbol(symbol)) {
+                    word.add(symbol);
+                }
+            }
         }
-        return edges;
+        return word;
     }
 }

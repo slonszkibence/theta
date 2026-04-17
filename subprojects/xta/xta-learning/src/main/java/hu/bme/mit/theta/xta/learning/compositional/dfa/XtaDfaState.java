@@ -14,7 +14,7 @@ public final class XtaDfaState<S extends State, DfaState> implements State {
 
     private XtaDfaState(XtaState<S> xtaState, DfaState dfaState) {
         this.xtaState = checkNotNull(xtaState);
-        this.dfaState = checkNotNull(dfaState);
+        this.dfaState = dfaState;
     }
 
     public static <S extends State, DfaState> XtaDfaState<S, DfaState> create(XtaState<S> xtaState, DfaState dfaState) {
@@ -40,7 +40,7 @@ public final class XtaDfaState<S extends State, DfaState> implements State {
         if (o == null || getClass() != o.getClass()) return false;
         XtaDfaState<?, ?> that = (XtaDfaState<?, ?>) o;
 
-        return xtaState.equals(that.xtaState) && dfaState.equals(that.dfaState);
+        return xtaState.equals(that.xtaState) && Objects.equals(dfaState, that.dfaState);
     }
 
     @Override

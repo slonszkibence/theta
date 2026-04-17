@@ -9,14 +9,16 @@ import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.analysis.XtaAnalysis;
 
+import java.util.Set;
+
 public class XtaDFASUL<S extends State, P extends Prec> extends XtaSUL<S, P> implements SUL<XtaProcess.Edge, Boolean> {
-    private XtaDFASUL(XtaSystem xtaSystem, XtaAnalysis<S, P> xtaAnalysis, P prec) {
-        super(xtaSystem, xtaAnalysis, prec);
+    private XtaDFASUL(XtaSystem xtaSystem, XtaAnalysis<S, P> xtaAnalysis, P prec, Set<XtaProcess.Edge> observableEdges) {
+        super(xtaSystem, xtaAnalysis, prec, observableEdges);
     }
 
     public static <S extends State, P extends Prec> XtaDFASUL<S, P>
-    create(XtaSystem xtaSystem, XtaAnalysis<S, P> xtaAnalysis, P prec) {
-        return new XtaDFASUL<>(xtaSystem, xtaAnalysis, prec);
+    create(XtaSystem xtaSystem, XtaAnalysis<S, P> xtaAnalysis, P prec, Set<XtaProcess.Edge> observableEdges) {
+        return new XtaDFASUL<>(xtaSystem, xtaAnalysis, prec, observableEdges);
     }
 
     /**

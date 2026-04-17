@@ -17,8 +17,11 @@ import hu.bme.mit.theta.analysis.waitlist.FifoWaitlist;
 import hu.bme.mit.theta.analysis.waitlist.LifoWaitlist;
 import hu.bme.mit.theta.analysis.waitlist.RandomWaitlist;
 import hu.bme.mit.theta.analysis.waitlist.Waitlist;
+import hu.bme.mit.theta.common.logging.Logger;
+import hu.bme.mit.theta.common.logging.NullLogger;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
 
+import java.util.Arrays;
 import java.util.function.Predicate;
 
 public class XtaDfaCheckerFactory {
@@ -29,8 +32,10 @@ public class XtaDfaCheckerFactory {
             XtaDfaCheckerStrategy strategy,
             Analysis<XtaDfaState<S, DfaState>, XtaAction, P> analysis,
             LTS<XtaDfaState<S, DfaState>, XtaAction> lts,
-            Predicate<XtaDfaState<S, DfaState>> targetPred
+            Predicate<XtaDfaState<S, DfaState>> targetPred,
+            Logger logger
     ) {
+
         Waitlist<ArgNode<XtaDfaState<S, DfaState>, XtaAction>> waitlist = switch (strategy) {
             case RANDOM -> RandomWaitlist.create();
             case BFS -> FifoWaitlist.create();
@@ -44,7 +49,8 @@ public class XtaDfaCheckerFactory {
         Abstractor<XtaDfaState<S, DfaState>, XtaAction, P> abstractor = BasicAbstractor
                 .builder(argBuilder)
                 .waitlist(waitlist)
-                .projection(state -> state)
+                .projection(state -> Arrays.asList(state.getDfaState(), state.getXtaState().getLocs()))
+                .logger(logger)
                 .build();
 
         return prec -> {
