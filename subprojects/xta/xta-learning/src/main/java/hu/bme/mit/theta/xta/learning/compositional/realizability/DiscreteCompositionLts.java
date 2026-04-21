@@ -75,7 +75,10 @@ public class DiscreteCompositionLts<S> implements LTS<DiscreteCompositionState<S
             if (alphabet.containsSymbol(symbol)) {
                 S nextDfaState = productDfa.getTransition(dfaState, symbol);
 
-                return nextDfaState != null && productDfa.isAccepting(nextDfaState);
+                if (nextDfaState == null) {
+                    return true; // No transition in product DFA: allow action, DFA state stays unchanged
+                }
+                return productDfa.isAccepting(nextDfaState);
             }
         }
         return true;

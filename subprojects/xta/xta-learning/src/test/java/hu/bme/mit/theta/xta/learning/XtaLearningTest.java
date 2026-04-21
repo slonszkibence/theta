@@ -37,14 +37,14 @@ public class XtaLearningTest {
     @Parameters(name = "model: {0}, safety: {2}")
     public static Collection<Object[]> data() {
         return List.of(
-                //new Object[]{"/model/Deadlock1Clock.xta", "/property/Deadlock1Clock.prop", true},
-                //new Object[]{"/model/Deadlock2Clock.xta", "/property/Deadlock2Clock.prop", false},
-                //new Object[]{"/model/DeadlockImmediate.xta", "/property/DeadlockImmediate.prop", true},
-                //new Object[]{"/model/Desync.xta", "/property/Desync.prop", true},
-                //new Object[]{"/model/Diagonal.xta", "/property/Diagonal.prop", true},
-                //new Object[]{"/model/PointInterval.xta", "/property/PointInterval.prop", false},
-                //new Object[]{"/model/Strict.xta", "/property/Strict.prop", true},
-                //new Object[]{"/model/Zeno.xta", "/property/Zeno.prop", false},
+                new Object[]{"/model/Deadlock1Clock.xta", "/property/Deadlock1Clock.prop", true},
+                new Object[]{"/model/Deadlock2Clock.xta", "/property/Deadlock2Clock.prop", false},
+                new Object[]{"/model/DeadlockImmediate.xta", "/property/DeadlockImmediate.prop", true},
+                new Object[]{"/model/Desync.xta", "/property/Desync.prop", true},
+                new Object[]{"/model/Diagonal.xta", "/property/Diagonal.prop", true},
+                new Object[]{"/model/PointInterval.xta", "/property/PointInterval.prop", false},
+                new Object[]{"/model/Strict.xta", "/property/Strict.prop", true},
+                new Object[]{"/model/Zeno.xta", "/property/Zeno.prop", false},
                 new Object[]{"/model/ComplexBranching.xta", "/property/ComplexBranching.prop", false},
                 new Object[]{"/model/leader_stateless_a.xta", "/property/leader_stateless_a.prop", false}
         );

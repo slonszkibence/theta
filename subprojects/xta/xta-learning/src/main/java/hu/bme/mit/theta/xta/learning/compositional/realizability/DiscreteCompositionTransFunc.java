@@ -6,6 +6,7 @@ import hu.bme.mit.theta.analysis.expl.ExplState;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.XtaState;
+import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
 
 import net.automatalib.alphabet.Alphabet;
 import net.automatalib.automaton.fsa.DFA;
@@ -49,7 +50,10 @@ public class DiscreteCompositionTransFunc<S, P extends Prec>
 
         S nextDfaState = state.getDfaState();
         if (symbol != null && alphabet.containsSymbol(symbol)) {
-            nextDfaState = productDfa.getTransition(state.getDfaState(), symbol);
+            S candidate = productDfa.getTransition(state.getDfaState(), symbol);
+            if (candidate != null) {
+                nextDfaState = candidate;
+            }
         }
 
         Collection<DiscreteCompositionState<S>> result = new ArrayList<>();
@@ -74,7 +78,7 @@ public class DiscreteCompositionTransFunc<S, P extends Prec>
         }
 
         for (XtaProcess.Edge edge : edges) {
-            String symbol = edge.getSource().getName() + "->" + edge.getTarget().getName();
+            String symbol = XtaTimingMapper.generateSymbolForEdge(edge);
             if (alphabet.containsSymbol(symbol)) {
                 return symbol;
             }

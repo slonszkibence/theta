@@ -28,7 +28,7 @@ public class ZoneDfaInitFunc<S, P extends Prec> implements InitFunc<ZoneDfaState
     @Override
     public Collection<ZoneDfaState<S>> getInitStates(P prec) {
         S initDfaState = hypothesis.getInitialState();
-        ZoneState initZone = ZoneState.zero(clocks);
+        ZoneState initZone = ZoneState.zero(clocks).transform().up().build();
         ZoneDfaState<S> initState = ZoneDfaState.create(initZone, initDfaState);
 
         return Collections.singleton(initState);

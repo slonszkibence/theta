@@ -88,6 +88,7 @@ public class XtaTPrimeSul implements SUL<TransitionConstraints, Boolean> {
                 builder.execute(update.asClockUpdate().getClockOp());
             }
         }
+        builder.up();
 
         for (Guard.ClockGuard inv : in.getTargetInvariants()) {
             builder.and(inv.getClockConstr());
@@ -96,8 +97,6 @@ public class XtaTPrimeSul implements SUL<TransitionConstraints, Boolean> {
         if (builder.build().isBottom()) {
             return false;
         }
-
-        builder.up();
 
         builder.norm(ceilings);
 

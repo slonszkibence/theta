@@ -6,13 +6,15 @@ import hu.bme.mit.theta.xta.analysis.XtaState;
 
 import java.util.Objects;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 
 public class DiscreteCompositionState<S> implements State {
     private final XtaState<ExplState> xtaState;
     private final S dfaState;
 
     private DiscreteCompositionState(XtaState<ExplState> xtaState, S dfaState) {
-        this.xtaState = xtaState;
+        this.xtaState = checkNotNull(xtaState);
         this.dfaState = dfaState;
     }
 
@@ -42,5 +44,10 @@ public class DiscreteCompositionState<S> implements State {
     @Override
     public int hashCode() {
         return Objects.hash(xtaState, dfaState);
+    }
+
+    @Override
+    public String toString() {
+        return "(" + xtaState + ", " + dfaState + ")";
     }
 }

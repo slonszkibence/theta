@@ -97,7 +97,7 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
                 Collections.reverse(counterExampleList);
                 Word<String> counterExampleWord = Word.fromList(counterExampleList);
 
-                return new DefaultQuery<>(counterExampleWord, false);
+                return new DefaultQuery<>(counterExampleWord, true);
             }
             passed.computeIfAbsent(currentDfaState, k -> new ArrayList<>()).add(node);
             argBuilder.expand(node, prec);

@@ -33,6 +33,8 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
         this.outputFunction = outputFunction;
 
         for (XtaProcess process : xtaSystem.getProcesses()) {
+            if (process.getName().equals("ErrorProc")) continue;
+
             for (var edge : process.getEdges()) {
 
                 List<Guard.ClockGuard> clockGuards = getClockGuardsForEdge(edge);
