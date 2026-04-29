@@ -8,10 +8,12 @@ import net.automatalib.automaton.fsa.impl.FastDFAState;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 
 public class ProductAutomatonBuilder {
+
+    private ProductAutomatonBuilder() {}
+
 
     public static <S1, S2> FastDFA<String> buildProduct(
             DFA<S1, String> untimedA,
@@ -41,8 +43,8 @@ public class ProductAutomatonBuilder {
             FastDFAState prodCurrState = visited.get(curr);
 
             for (String symbol : alphabet) {
-                S1 succA = untimedA.getSuccessor(curr.s1, symbol);
-                S2 succH = learnedH.getSuccessor(curr.s2, symbol);
+                S1 succA = untimedA.getSuccessor(curr.s1(), symbol);
+                S2 succH = learnedH.getSuccessor(curr.s2(), symbol);
 
                 if (succA != null && succH != null) {
                     StatePair<S1, S2> succPair = new StatePair<>(succA, succH);
@@ -64,28 +66,6 @@ public class ProductAutomatonBuilder {
         return productDfa;
     }
 
-    private ProductAutomatonBuilder() {}
-
-    private static class StatePair<S1, S2> {
-        public final S1 s1;
-        public final S2 s2;
-
-        public StatePair(S1 s1, S2 s2) {
-            this.s1 = s1;
-            this.s2 = s2;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            StatePair<?, ?> that = (StatePair<?, ?>) o;
-            return Objects.equals(s1, that.s1) && Objects.equals(s2, that.s2);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(s1, s2);
-        }
+    private record StatePair<S1, S2>(S1 s1, S2 s2) {
     }
 }

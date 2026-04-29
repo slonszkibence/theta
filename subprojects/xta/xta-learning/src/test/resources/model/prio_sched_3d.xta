@@ -1,0 +1,572 @@
+// Place global declarations here.
+clock x;
+
+const int comp_u_0 = 5;
+const int comp_u_1 = 4;
+const int comp_u_2 = 5;
+const int comp_l_0 = 2;
+const int comp_l_1 = 1;
+const int comp_l_2 = 2;
+const int inter_0 = 20;
+const int inter_1 = 20;
+const int inter_2 = 25;
+const int dead_0 = 20;
+const int dead_1 = 20;
+const int dead_2 = 40;
+
+bool cond_0, cond_1, cond_2;
+bool is_ready_0 = true;
+bool is_ready_1 = true;
+bool is_ready_2 = true;
+
+chan step;
+
+// inputs
+bool obsx_0_0_6;
+bool obsx_1;
+bool obsx_2;
+bool obsy_0_0_6;
+bool obsy_1;
+bool obsy_2;
+bool robx_0_0_7;
+bool robx_1;
+bool robx_2;
+bool roby_0_0_7;
+bool roby_1;
+bool roby_2;
+bool glitches_0_0_1;
+bool controllable_movx_0_0_2;
+bool controllable_movx_1;
+bool controllable_movy_0_0_2;
+bool controllable_movy_1;
+bool controllable_obsmove;
+//
+bool IsNotFirstRound;
+bool prev_obsx_0_0_6;
+bool prev_obsx_1;
+bool prev_obsx_2;
+bool prev_obsy_0_0_6;
+bool prev_obsy_1;
+bool prev_obsy_2;
+bool prev_robx_0_0_7;
+bool prev_robx_1;
+bool prev_robx_2;
+bool prev_roby_0_0_7;
+bool prev_roby_1;
+bool prev_roby_2;
+bool prev_glitches_0_0_1;
+bool prev_movx_0_0_2;
+bool prev_movx_1;
+bool prev_movy_0_0_2;
+bool prev_movy_1;
+bool prev_obsmove;
+bool AssumptionsAlreadyViolated;
+
+bool a0, a2, a4, a6, a8, a10, a12, a14, a16, a18;
+bool a20, a22, a24, a26, a28, a30, a32, a34, a36, a38;
+bool a40, a42, a44, a46, a48, a50, a52, a54, a56, a58;
+bool a60, a62, a64, a66, a68, a70, a72, a74, a76, a78;
+bool a80, a82, a84, a86, a88, a90, a92, a94, a96, a98;
+bool a100, a102, a104, a106, a108, a110, a112, a114, a116, a118;
+bool a120, a122, a124, a126, a128, a130, a132, a134, a136, a138;
+bool a140, a142, a144, a146, a148, a150, a152, a154, a156, a158;
+bool a160, a162, a164, a166, a168, a170, a172, a174, a176, a178;
+bool a180, a182, a184, a186, a188, a190, a192, a194, a196, a198;
+bool a200, a202, a204, a206, a208, a210, a212, a214, a216, a218;
+bool a220, a222, a224, a226, a228, a230, a232, a234, a236, a238;
+bool a240, a242, a244, a246, a248, a250, a252, a254, a256, a258;
+bool a260, a262, a264, a266, a268, a270, a272, a274, a276, a278;
+bool a280, a282, a284, a286, a288, a290, a292, a294, a296, a298;
+bool a300, a302, a304, a306, a308, a310, a312, a314, a316, a318;
+bool a320, a322, a324, a326, a328, a330, a332, a334, a336, a338;
+bool a340, a342, a344, a346, a348, a350, a352, a354, a356, a358;
+bool a360, a362, a364, a366, a368, a370, a372, a374, a376, a378;
+bool a380, a382, a384, a386, a388, a390, a392, a394, a396, a398;
+bool a400, a402, a404, a406, a408, a410, a412, a414, a416, a418;
+bool a420, a422, a424, a426, a428, a430, a432, a434, a436, a438;
+bool a440, a442, a444, a446, a448, a450, a452, a454, a456, a458;
+bool a460, a462, a464, a466, a468, a470, a472, a474, a476, a478;
+bool a480, a482, a484, a486, a488, a490, a492, a494, a496, a498;
+bool a500, a502, a504, a506, a508, a510, a512, a514, a516, a518;
+bool a520, a522, a524, a526, a528, a530, a532, a534, a536, a538;
+bool a540, a542, a544, a546, a548, a550, a552, a554, a556, a558;
+bool a560, a562, a564, a566, a568, a570, a572, a574, a576, a578;
+bool a580, a582, a584, a586, a588, a590, a592, a594, a596, a598;
+bool a600, a602, a604, a606, a608, a610, a612, a614, a616, a618;
+bool a620, a622, a624, a626, a628, a630, a632, a634, a636, a638;
+bool a640, a642, a644, a646, a648, a650, a652, a654, a656, a658;
+bool a660, a662, a664, a666, a668, a670, a672, a674, a676, a678;
+bool a680, a682, a684, a686, a688, a690, a692, a694, a696, a698;
+
+bool sh_0_, sh_1_, sh_2_, sh_3_;
+bool controllable_do_shift;
+
+process Internals() {
+state
+    L0,
+    L1,
+    L2,
+    L3,
+    L4,
+    L5,
+    L6,
+    L7,
+    L8,
+    L9,
+    L10,
+    L11,
+    L12,
+    L13,
+    L14,
+    L15,
+    L16;
+commit
+    L1,
+    L2,
+    L3,
+    L4,
+    L5,
+    L6,
+    L7,
+    L8,
+    L9,
+    L10,
+    L11,
+    L12,
+    L13,
+    L14,
+    L15,
+    L16;
+init
+    L0;
+trans
+    L16 -> L0 { assign controllable_obsmove=true; },
+    L16 -> L0 { assign controllable_obsmove=false; },
+    L15 -> L16 { assign controllable_movy_1=true; },
+    L14 -> L15 { assign controllable_movy_0_0_2=true; },
+    L13 -> L14 { assign controllable_movx_1=false; },
+    L12 -> L13 { assign controllable_movx_0_0_2=true; },
+    L11 -> L12 { assign glitches_0_0_1=true; },
+    L10 -> L11 { assign roby_1=true; },
+    L9 -> L10 { assign roby_0_0_7=true; },
+    L8 -> L9 { assign robx_1=true; },
+    L7 -> L8 { assign robx_0_0_7=true; },
+    L15 -> L16 { assign controllable_movy_1=false; },
+    L14 -> L15 { assign controllable_movy_0_0_2=false; },
+    L13 -> L14 { assign controllable_movx_1=true; },
+    L12 -> L13 { assign controllable_movx_0_0_2=false; },
+    L11 -> L12 { assign glitches_0_0_1=false; },
+    L10 -> L11 { assign roby_1=false; },
+    L9 -> L10 { assign roby_0_0_7=false; },
+    L8 -> L9 { assign robx_1=false; },
+    L7 -> L8 { assign robx_0_0_7=false; },
+    L6 -> L7 { assign obsy_2=false; },
+    L6 -> L7 { assign obsy_2=true; },
+    L5 -> L6 { assign obsy_1=false; },
+    L5 -> L6 { assign obsy_1=true; },
+    L4 -> L5 { assign obsy_0_0_6=false; },
+    L4 -> L5 { assign obsy_0_0_6=true; },
+    L3 -> L4 { assign obsx_2=true; },
+    L2 -> L3 { assign obsx_1=false; },
+    L3 -> L4 { assign obsx_2=false; },
+    L2 -> L3 { assign obsx_1=true; },
+    L1 -> L2 { assign obsx_0_0_6=true; },
+    L1 -> L2 { assign obsx_0_0_6=false; },
+    L0 -> L1 {
+        sync step?;
+        // --- INLINED UPDATE FUNCTION ---
+        assign
+            IsNotFirstRound = true,
+            prev_obsx_0_0_6 = obsx_0_0_6,
+            prev_obsx_1 = obsx_1,
+            prev_obsx_2 = obsx_2,
+            prev_obsy_0_0_6 = obsy_0_0_6,
+            prev_obsy_1 = obsy_1,
+            prev_obsy_2 = obsy_2,
+            prev_robx_0_0_7 = robx_0_0_7,
+            prev_robx_1 = robx_1,
+            prev_robx_2 = robx_2,
+            prev_roby_0_0_7 = roby_0_0_7,
+            prev_roby_1 = roby_1,
+            prev_roby_2 = roby_2,
+            prev_glitches_0_0_1 = glitches_0_0_1,
+            prev_movx_0_0_2 = controllable_movx_0_0_2,
+            prev_movx_1 = controllable_movx_1,
+            prev_movy_0_0_2 = controllable_movy_0_0_2,
+            prev_movy_1 = controllable_movy_1,
+            prev_obsmove = controllable_obsmove,
+            AssumptionsAlreadyViolated = !a586,
+            a78 = obsy_1 && obsy_0_0_6,
+            a80 = a78 && obsy_2,
+            a82 = !robx_1 && !robx_0_0_7,
+            a84 = a82 && !robx_2,
+            a86 = !roby_1 && !roby_0_0_7,
+            a88 = a86 && !roby_2,
+            a90 = a88 && a84,
+            a92 = obsx_1 && !obsx_0_0_6,
+            a94 = a92 && obsx_2,
+            a96 = a94 && a90,
+            a98 = obsy_1 && !obsy_0_0_6,
+            a100 = a98 && obsy_2,
+            a102 = a100 && a96,
+            a104 = a102 && !glitches_0_0_1,
+            a106 = obsx_1 && obsx_0_0_6,
+            a108 = a106 && obsx_2,
+            a110 = !a108 && a104,
+            a112 = !a110 && !IsNotFirstRound,
+            a114 = !a112 && !a80,
+            a116 = prev_obsx_1 && prev_obsx_0_0_6,
+            a118 = !a116 && !prev_obsx_2,
+            a120 = prev_obsx_1 && obsx_1,
+            a122 = prev_obsx_0_0_6 && !obsx_0_0_6,
+            a124 = a122 && !a120,
+            a126 = !prev_obsx_1 && !obsx_1,
+            a128 = prev_obsx_1 && !prev_obsx_0_0_6,
+            a130 = !a128 && !a126,
+            a132 = a130 && !a124,
+            a134 = a132 && obsx_2,
+            a136 = !a134 && !a118,
+            a138 = a116 && prev_obsx_2,
+            a140 = !a132 && !obsx_2,
+            a142 = !a140 && !a138,
+            a144 = a142 && !a136,
+            a146 = prev_obsy_1 && prev_obsy_0_0_6,
+            a148 = !a146 && !prev_obsy_2,
+            a150 = prev_obsy_1 && obsy_1,
+            a152 = prev_obsy_0_0_6 && !obsy_0_0_6,
+            a154 = a152 && !a150,
+            a156 = !prev_obsy_1 && !obsy_1,
+            a158 = prev_obsy_1 && !prev_obsy_0_0_6,
+            a160 = !a158 && !a156,
+            a162 = a160 && !a154,
+            a164 = a162 && obsy_2,
+            a166 = !a164 && !a148,
+            a168 = a146 && prev_obsy_2,
+            a170 = !a162 && !obsy_2,
+            a172 = !a170 && !a168,
+            a174 = a172 && !a166,
+            a176 = !a174 && !a144,
+            a178 = !a106 && !obsx_2,
+            a180 = !prev_obsx_0_0_6 && obsx_0_0_6,
+            a182 = a180 && !a120,
+            a184 = !a126 && !a92,
+            a186 = a184 && !a182,
+            a188 = a186 && prev_obsx_2,
+            a190 = !a188 && !a178,
+            a192 = !a186 && !prev_obsx_2,
+            a194 = !a192 && !a108,
+            a196 = a194 && !a190,
+            a198 = !a196 && a176,
+            a200 = !a78 && !obsy_2,
+            a202 = !prev_obsy_0_0_6 && obsy_0_0_6,
+            a204 = a202 && !a150,
+            a206 = !a156 && !a98,
+            a208 = a206 && !a204,
+            a210 = a208 && prev_obsy_2,
+            a212 = !a210 && !a200,
+            a214 = !a208 && !prev_obsy_2,
+            a216 = !a214 && !a80,
+            a218 = a216 && !a212,
+            a220 = !a218 && a198,
+            a222 = prev_robx_1 && prev_robx_0_0_7,
+            a224 = !a222 && !prev_robx_2,
+            a226 = !prev_robx_1 && !prev_robx_0_0_7,
+            a228 = !a226 && !a222,
+            a230 = a228 && !robx_1,
+            a232 = !a228 && robx_1,
+            a234 = !prev_robx_0_0_7 && !robx_0_0_7,
+            a236 = prev_robx_0_0_7 && robx_0_0_7,
+            a238 = a236 && !a234,
+            a240 = !a238 && !a232,
+            a242 = !a240 && !a230,
+            a244 = a242 && robx_2,
+            a246 = !a244 && !a224,
+            a248 = a222 && prev_robx_2,
+            a250 = !a242 && !robx_2,
+            a252 = !a250 && !a248,
+            a254 = a252 && !a246,
+            a256 = !a254 && a220,
+            a258 = prev_roby_1 && prev_roby_0_0_7,
+            a260 = !a258 && !prev_roby_2,
+            a262 = !prev_roby_1 && !prev_roby_0_0_7,
+            a264 = !a262 && !a258,
+            a266 = a264 && !roby_1,
+            a268 = !a264 && roby_1,
+            a270 = !prev_roby_0_0_7 && !roby_0_0_7,
+            a272 = prev_roby_0_0_7 && roby_0_0_7,
+            a274 = a272 && !a270,
+            a276 = !a274 && !a268,
+            a278 = !a276 && !a266,
+            a280 = a278 && roby_2,
+            a282 = !a280 && !a260,
+            a284 = a258 && prev_roby_2,
+            a286 = !a278 && !roby_2,
+            a288 = !a286 && !a284,
+            a290 = a288 && !a282,
+            a292 = !a290 && a256,
+            a294 = robx_1 && robx_0_0_7,
+            a296 = a294 && robx_2,
+            a298 = !a294 && !robx_2,
+            a300 = !a298 && !a296,
+            a302 = a300 && !prev_robx_2,
+            a304 = !a300 && prev_robx_2,
+            a306 = !a294 && !a82,
+            a308 = a306 && !prev_robx_1,
+            a310 = !a306 && prev_robx_1,
+            a312 = !a310 && !a238,
+            a314 = !a312 && !a308,
+            a316 = !a314 && !a304,
+            a318 = !a316 && !a302,
+            a320 = a318 && !a296,
+            a322 = !a320 && a292,
+            a324 = roby_1 && roby_0_0_7,
+            a326 = a324 && roby_2,
+            a328 = !a324 && !roby_2,
+            a330 = !a328 && !a326,
+            a332 = a330 && !prev_roby_2,
+            a334 = !a330 && prev_roby_2,
+            a336 = !a324 && !a86,
+            a338 = a336 && !prev_roby_1,
+            a340 = !a336 && prev_roby_1,
+            a342 = !a340 && !a274,
+            a344 = !a342 && !a338,
+            a346 = !a344 && !a334,
+            a348 = !a346 && !a332,
+            a350 = a348 && !a326,
+            a352 = !a350 && a322,
+            a354 = a226 && !prev_robx_2,
+            a356 = a354 && a84,
+            a358 = a356 && !prev_movx_1,
+            a360 = !prev_movx_1 && !prev_robx_1,
+            a362 = prev_movx_1 && prev_robx_1,
+            a364 = prev_movx_0_0_2 && prev_robx_0_0_7,
+            a366 = !a364 && !a362,
+            a368 = !a366 && !a360,
+            a370 = a368 && prev_robx_2,
+            a372 = a370 && !a296,
+            a374 = !a370 && a296,
+            a376 = !a368 && !prev_robx_2,
+            a378 = !a376 && !a370,
+            a380 = a378 && !a300,
+            a382 = !a378 && a300,
+            a384 = !a362 && !a360,
+            a386 = !a384 && !a364,
+            a388 = a384 && a364,
+            a390 = !a388 && !a386,
+            a392 = a390 && !a306,
+            a394 = !a390 && a306,
+            a396 = !prev_movx_0_0_2 && !prev_robx_0_0_7,
+            a398 = !a396 && !a364,
+            a400 = !a398 && !robx_0_0_7,
+            a402 = !a400 && !a394,
+            a404 = !a402 && !a392,
+            a406 = !a404 && !a382,
+            a408 = !a406 && !a380,
+            a410 = !a408 && !a374,
+            a412 = !a410 && !a372,
+            a414 = a412 && !a358,
+            a416 = a296 && a248,
+            a418 = !prev_movx_1 && !prev_movx_0_0_2,
+            a420 = !a418 && a416,
+            a422 = a398 && robx_0_0_7,
+            a424 = !a422 && !a392,
+            a426 = !a424 && !a394,
+            a428 = !a426 && !a380,
+            a430 = !a428 && !a382,
+            a432 = !a430 && !a372,
+            a434 = !a432 && !a374,
+            a436 = a434 && !a420,
+            a438 = !a436 && !a414,
+            a440 = a262 && !prev_roby_2,
+            a442 = a440 && a88,
+            a444 = a442 && !prev_movy_1,
+            a446 = !prev_movy_1 && !prev_roby_1,
+            a448 = prev_movy_1 && prev_roby_1,
+            a450 = prev_movy_0_0_2 && prev_roby_0_0_7,
+            a452 = !a450 && !a448,
+            a454 = !a452 && !a446,
+            a456 = a454 && prev_roby_2,
+            a458 = a456 && !a326,
+            a460 = !a456 && a326,
+            a462 = !a454 && !prev_roby_2,
+            a464 = !a462 && !a456,
+            a466 = a464 && !a330,
+            a468 = !a464 && a330,
+            a470 = !a448 && !a446,
+            a472 = !a470 && !a450,
+            a474 = a470 && a450,
+            a476 = !a474 && !a472,
+            a478 = a476 && !a336,
+            a480 = !a476 && a336,
+            a482 = !prev_movy_0_0_2 && !prev_roby_0_0_7,
+            a484 = !a482 && !a450,
+            a486 = !a484 && !roby_0_0_7,
+            a488 = !a486 && !a480,
+            a490 = !a488 && !a478,
+            a492 = !a490 && !a468,
+            a494 = !a492 && !a466,
+            a496 = !a494 && !a460,
+            a498 = !a496 && !a458,
+            a500 = a498 && !a444,
+            a502 = !a500 && a438,
+            a504 = a326 && a284,
+            a506 = !prev_movy_1 && !prev_movy_0_0_2,
+            a508 = !a506 && a504,
+            a510 = a484 && roby_0_0_7,
+            a512 = !a510 && !a478,
+            a514 = !a512 && !a480,
+            a516 = !a514 && !a466,
+            a518 = !a516 && !a468,
+            a520 = !a518 && !a458,
+            a522 = !a520 && !a460,
+            a524 = a522 && !a508,
+            a526 = !a524 && a502,
+            a528 = a526 && a352,
+            a530 = prev_glitches_0_0_1 && !glitches_0_0_1,
+            a532 = !a530 && a528,
+            a534 = !prev_obsx_2 && !obsx_2,
+            a536 = prev_obsx_2 && obsx_2,
+            a538 = !a536 && !a534,
+            a540 = !a126 && !a120,
+            a542 = !prev_obsx_0_0_6 && !obsx_0_0_6,
+            a544 = prev_obsx_0_0_6 && obsx_0_0_6,
+            a546 = !a544 && !a542,
+            a548 = !a546 && !a540,
+            a550 = a548 && !a538,
+            a552 = !prev_obsy_2 && !obsy_2,
+            a554 = prev_obsy_2 && obsy_2,
+            a556 = !a554 && !a552,
+            a558 = !a156 && !a150,
+            a560 = !prev_obsy_0_0_6 && !obsy_0_0_6,
+            a562 = prev_obsy_0_0_6 && obsy_0_0_6,
+            a564 = !a562 && !a560,
+            a566 = !a564 && !a558,
+            a568 = a566 && !a556,
+            a570 = a568 && a550,
+            a572 = !a570 && !prev_obsmove,
+            a574 = !prev_glitches_0_0_1 && glitches_0_0_1,
+            a576 = !a574 && a572,
+            a578 = !a576 && a532,
+            a580 = a578 && !a108,
+            a582 = !a580 && IsNotFirstRound,
+            a584 = !a582 && a114,
+            a586 = a584 && !AssumptionsAlreadyViolated,
+            a588 = controllable_movy_1 && controllable_movy_0_0_2,
+            a590 = controllable_movx_1 && controllable_movx_0_0_2,
+            a592 = !a590 && !controllable_obsmove,
+            a594 = !a592 && !IsNotFirstRound,
+            a596 = !a594 && !a588,
+            a598 = !prev_robx_2 && prev_obsx_2,
+            a600 = prev_robx_2 && !prev_obsx_2,
+            a602 = !prev_robx_1 && prev_obsx_1,
+            a604 = prev_robx_1 && !prev_obsx_1,
+            a606 = !prev_robx_0_0_7 && prev_obsx_0_0_6,
+            a608 = a606 && !a604,
+            a610 = !a608 && !a602,
+            a612 = !a610 && !a600,
+            a614 = !a612 && !a598,
+            a616 = prev_robx_1 && prev_obsx_1,
+            a618 = !prev_robx_1 && !prev_obsx_1,
+            a620 = !a618 && !a606,
+            a622 = !a620 && !a616,
+            a624 = !prev_obsx_2 && !prev_obsx_1,
+            a626 = a624 && prev_robx_2,
+            a628 = !a626 && a622,
+            a630 = prev_obsx_2 && prev_obsx_1,
+            a632 = !a624 && !prev_robx_2,
+            a634 = !a632 && !a630,
+            a636 = a634 && !a628,
+            a638 = !a636 && a614,
+            a640 = !prev_roby_2 && prev_obsy_2,
+            a642 = prev_roby_2 && !prev_obsy_2,
+            a644 = !prev_roby_1 && prev_obsy_1,
+            a646 = prev_roby_1 && !prev_obsy_1,
+            a648 = !prev_roby_0_0_7 && prev_obsy_0_0_6,
+            a650 = a648 && !a646,
+            a652 = !a650 && !a644,
+            a654 = !a652 && !a642,
+            a656 = !a654 && !a640,
+            a658 = a656 && a638,
+            a660 = prev_roby_1 && prev_obsy_1,
+            a662 = !prev_roby_1 && !prev_obsy_1,
+            a664 = !a662 && !a648,
+            a666 = !a664 && !a660,
+            a668 = !prev_obsy_2 && !prev_obsy_1,
+            a670 = a668 && prev_roby_2,
+            a672 = !a670 && a666,
+            a674 = prev_obsy_2 && prev_obsy_1,
+            a676 = !a668 && !prev_roby_2,
+            a678 = !a676 && !a674,
+            a680 = a678 && !a672,
+            a682 = !a680 && a658,
+            a684 = !a570 && controllable_obsmove,
+            a686 = !a684 && !a682,
+            a688 = a570 && !controllable_obsmove,
+            a690 = !a688 && a686,
+            a692 = a690 && !a590,
+            a694 = !a692 && IsNotFirstRound,
+            a696 = !a694 && a596,
+            a698 = !a696 && a586,
+            cond_0 = (obsx_0_0_6 || obsx_1 || obsx_2),
+            cond_1 = (obsy_0_0_6 || obsy_1),
+            cond_2 = (obsy_0_0_6 || obsx_1);
+    };
+}
+
+process Scheduler() {
+state
+    wait,
+    p0,
+    p1,
+    idle,
+    p0_ { x<=comp_u_0 },
+    p1_ { x<=comp_u_1 },
+    idle_ { x<=5 },
+    L0 { x<=comp_u_2 };
+commit
+    p0,
+    p1,
+    idle;
+urgent
+    wait;
+init
+    wait;
+trans
+    L0 -> wait { },
+    wait -> L0 { guard !is_ready_0 && !is_ready_1 && is_ready_2; sync step!; assign x=0, is_ready_2=false; },
+    idle_ -> wait { assign x=0; },
+    idle -> idle_ { sync step!; },
+    p1_ -> wait { assign x=0; },
+    p1 -> p1_ { sync step!; },
+    p0_ -> wait { assign x=0; },
+    p0 -> p0_ { sync step!; },
+    p1 -> wait { sync step!; },
+    p0 -> wait { },
+    wait -> idle { guard !is_ready_0 && !is_ready_1 && !is_ready_2; assign x=0; },
+    wait -> p1 { guard !is_ready_0 && is_ready_1; assign x=0, is_ready_1=false; },
+    wait -> p0 { guard is_ready_0; assign x=0, is_ready_0=false; };
+}
+
+process P(const int i, const int my_dead, const int my_inter) {
+clock y;
+state q, missed;
+init q;
+trans
+    q -> missed { guard y > my_dead && (i==0 ? is_ready_0 : (i==1 ? is_ready_1 : is_ready_2)); },
+    q -> q {
+        guard y >= my_inter && (i==0 ? cond_0 : (i==1 ? cond_1 : cond_2));
+        sync step!;
+        assign y=0,
+               is_ready_0 = (i==0 ? true : is_ready_0),
+               is_ready_1 = (i==1 ? true : is_ready_1),
+               is_ready_2 = (i==2 ? true : is_ready_2);
+    };
+}
+
+p0 = P(0, 20, 15);
+p1 = P(1, 20, 20);
+p2 = P(2, 40, 25);
+mysched = Scheduler();
+internals = Internals();
+
+system p0, p1, p2, mysched, internals;

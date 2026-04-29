@@ -1,0 +1,152 @@
+
+ int N = 3;
+
+chan set_drive[4], set_not_drive[4];
+chan poll_EC[4], poll_not_EC[4];
+chan poll_EC_drive[4], poll_not_EC_drive[4], poll_EC_not_drive[4], poll_not_EC_not_drive[4];
+broadcast chan go;
+
+process InOut() {
+    bool EC[4];
+    bool drive[4];
+    clock x;
+
+    state
+        L0,
+        L;
+    urgent
+        L0;
+    init
+        L0;
+    trans
+        // INLINED initialize() függvény
+        L0 -> L { sync go!; assign EC[1]=false, drive[1]=false, EC[2]=false, drive[2]=false, EC[3]=false, drive[3]=false; },
+
+        // Kiterített (unrolled) SELECT átmenetek a Theta kompatibilitásért
+        L -> L { guard !EC[1] && !drive[1] && x>0; sync poll_not_EC_not_drive[1]?; },
+        L -> L { guard !EC[2] && !drive[2] && x>0; sync poll_not_EC_not_drive[2]?; },
+        L -> L { guard !EC[3] && !drive[3] && x>0; sync poll_not_EC_not_drive[3]?; },
+
+        L -> L { guard EC[1] && !drive[1] && x>0; sync poll_EC_not_drive[1]?; },
+        L -> L { guard EC[2] && !drive[2] && x>0; sync poll_EC_not_drive[2]?; },
+        L -> L { guard EC[3] && !drive[3] && x>0; sync poll_EC_not_drive[3]?; },
+
+        L -> L { guard !EC[1] && drive[1] && x>0; sync poll_not_EC_drive[1]?; },
+        L -> L { guard !EC[2] && drive[2] && x>0; sync poll_not_EC_drive[2]?; },
+        L -> L { guard !EC[3] && drive[3] && x>0; sync poll_not_EC_drive[3]?; },
+
+        L -> L { guard EC[1] && drive[1] && x>0; sync poll_EC_drive[1]?; },
+        L -> L { guard EC[2] && drive[2] && x>0; sync poll_EC_drive[2]?; },
+        L -> L { guard EC[3] && drive[3] && x>0; sync poll_EC_drive[3]?; },
+
+        L -> L { guard !EC[1] && x>0; sync poll_not_EC[1]?; },
+        L -> L { guard !EC[2] && x>0; sync poll_not_EC[2]?; },
+        L -> L { guard !EC[3] && x>0; sync poll_not_EC[3]?; },
+
+        L -> L { guard EC[1] && x>0; sync poll_EC[1]?; },
+        L -> L { guard EC[2] && x>0; sync poll_EC[2]?; },
+        L -> L { guard EC[3] && x>0; sync poll_EC[3]?; },
+
+        L -> L { assign EC[1]=false; },
+        L -> L { assign EC[2]=false; },
+        L -> L { assign EC[3]=false; },
+
+        L -> L { assign EC[1]=true; },
+        L -> L { assign EC[2]=true; },
+        L -> L { assign EC[3]=true; },
+
+        L -> L { sync set_not_drive[1]?; assign drive[1]=false, x=0; },
+        L -> L { sync set_not_drive[2]?; assign drive[2]=false, x=0; },
+        L -> L { sync set_not_drive[3]?; assign drive[3]=false, x=0; },
+
+        L -> L { sync set_drive[1]?; assign drive[1]=true, x=0; },
+        L -> L { sync set_drive[2]?; assign drive[2]=true, x=0; },
+        L -> L { sync set_drive[3]?; assign drive[3]=true, x=0; };
+}
+
+process A(const int pid) {
+    int[0,3] pc = 0;
+    bool polled_drive = false;
+    bool polled_EC = false;
+    clock y;
+    clock z;
+    state
+        L0,
+        Stop { z<1 },
+        Wait { z<1 },
+        Go { z<1 };
+    urgent
+        L0;
+    init
+        L0;
+    trans
+        Go -> Stop { guard pc==3 && !polled_drive; assign pc=0, y=0, z=0; },
+        Go -> Go { guard pc==3 && polled_drive; assign pc=0, z=0; },
+        Go -> Go { guard pc==1; assign pc=3; },
+        Go -> Go { guard pc==0 && z>0; sync poll_not_EC_not_drive[pid]!; assign pc=1, polled_EC=false, polled_drive=false; },
+        Go -> Go { guard pc==0 && z>0; sync poll_not_EC_drive[pid]!; assign pc=1, polled_EC=false, polled_drive=true; },
+        Go -> Go { guard pc==0 && z>0; sync poll_EC_not_drive[pid]!; assign pc=1, polled_EC=true, polled_drive=false; },
+        Go -> Go { guard pc==0 && z>0; sync poll_EC_drive[pid]!; assign pc=1, polled_EC=true, polled_drive=true; },
+        Wait -> Go { guard pc==3 && polled_EC && polled_drive; assign pc=0, y=0, z=0; },
+        Wait -> Wait { guard pc==3 && !(polled_EC && polled_drive); assign pc=0, z=0; },
+        Wait -> Wait { guard pc==1; assign pc=3; },
+        Wait -> Wait { guard pc==0 && z>0; sync poll_not_EC_not_drive[pid]!; assign pc=1, polled_EC=false, polled_drive=false; },
+        Wait -> Wait { guard pc==0 && z>0; sync poll_not_EC_drive[pid]!; assign pc=1, polled_EC=false, polled_drive=true; },
+        Wait -> Wait { guard pc==0 && z>0; sync poll_EC_not_drive[pid]!; assign pc=1, polled_EC=true, polled_drive=false; },
+        Wait -> Wait { guard pc==0 && z>0; sync poll_EC_drive[pid]!; assign pc=1, polled_EC=true, polled_drive=true; },
+        Stop -> Stop { guard pc==3 && !polled_EC; assign pc=0, z=0; },
+        Stop -> Wait { guard pc==3 && polled_EC; assign pc=0, y=0, z=0; },
+        Stop -> Stop { guard pc==1; assign pc=3; },
+        Stop -> Stop { guard pc==0 && z>0; sync poll_not_EC_not_drive[pid]!; assign pc=1, polled_EC=false, polled_drive=false; },
+        Stop -> Stop { guard pc==0 && z>0; sync poll_EC_not_drive[pid]!; assign pc=1, polled_EC=true, polled_drive=false; },
+        Stop -> Stop { guard pc==0 && z>0; sync poll_not_EC_drive[pid]!; assign pc=1, polled_EC=false, polled_drive=true; },
+        Stop -> Stop { guard pc==0 && z>0; sync poll_EC_drive[pid]!; assign pc=1, polled_EC=true, polled_drive=true; },
+        L0 -> Stop { sync go?; };
+}
+
+process Ctrl() {
+    int[0,3] pc = 0;
+    bool polled_EC[4];
+    clock y;
+    clock z;
+    int[1,3] pid = 2;
+    state
+        L0,
+        Ready { z<1 },
+        Drive { z<1 },
+        Fin { z<1 };
+    urgent
+        L0;
+    init
+        L0;
+    trans
+        Fin -> Fin { guard pc==3 && !polled_EC[pid]; assign pc=0, z=0; },
+        Fin -> Fin { guard pc==1 && y>2; assign pc=3; },
+        Fin -> Fin { guard pc==2; assign pc=0, z=0; },
+        Fin -> Fin { guard pc==1 && y<=2; assign pc=2; },
+        Fin -> Fin { guard pc==0 && z>0; sync poll_not_EC[pid]!; assign pc=1, polled_EC[pid]=false; },
+        Fin -> Fin { guard pc==0 && z>0; sync poll_EC[pid]!; assign pc=1, polled_EC[pid]=true; },
+        Drive -> Drive { guard pc==3 && polled_EC[pid]; assign pc=0, z=0; },
+        Drive -> Drive { guard pc==1; assign pc=3; },
+        Drive -> Drive { guard pc==0 && z>0; sync poll_not_EC[pid]!; assign pc=1, polled_EC[pid]=false; },
+        Drive -> Drive { guard pc==0 && z>0; sync poll_EC[pid]!; assign pc=1, polled_EC[pid]=true; },
+        Ready -> Ready { guard pc==3 && polled_EC[(pid%3)+1] && !polled_EC[pid]; assign pid=(pid%3)+1, pc=0, z=0; },
+        Ready -> Ready { guard pc==0 && z>0; sync poll_not_EC[(pid%3)+1]!; assign pc=1, polled_EC[(pid%3)+1]=false; },
+        Ready -> Ready { guard pc==0 && z>0; sync poll_EC[(pid%3)+1]!; assign pc=1, polled_EC[(pid%3)+1]=true; },
+        Ready -> Ready { guard pc==0 && z>0; sync poll_EC[pid]!; assign pc=1, polled_EC[pid]=true; },
+        Ready -> Ready { guard pc==3 && !polled_EC[pid]; assign pc=0, z=0; },
+        Ready -> Ready { guard pc==1; assign pc=3; },
+        Ready -> Ready { guard pc==0 && z>0; sync poll_not_EC[pid]!; assign pc=1, polled_EC[pid]=false; },
+        Drive -> Fin { guard pc==3 && !polled_EC[pid]; sync set_not_drive[pid]!; assign pc=0, y=0, z=0; },
+        Fin -> Ready { guard pc==3 && polled_EC[pid]; assign pc=0, y=0, z=0, pid=(pid%3)+1; },
+        Ready -> Drive { guard pc==3 && polled_EC[pid]; sync set_drive[pid]!; assign pc=0, y=0, z=0; },
+        L0 -> Ready { sync go?; };
+}
+
+io = InOut();
+A1 = A(1);
+A2 = A(2);
+A3 = A(3);
+ctrl = Ctrl();
+
+system io, A1, A2, A3, ctrl;

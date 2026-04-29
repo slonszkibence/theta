@@ -28,12 +28,12 @@ public class UntimedAutomatonBuilder {
 
         for (XtaProcess.Loc loc : process.getLocs()) {
             for (XtaProcess.Edge edge : loc.getOutEdges()) {
-
                 String symbol = XtaTimingMapper.generateSymbolForEdge(edge);
-                dfa.addTransition(stateMap.get(loc), symbol, stateMap.get(edge.getTarget()));
+                if (alphabet.containsSymbol(symbol)) {
+                    dfa.addTransition(stateMap.get(loc), symbol, stateMap.get(edge.getTarget()));
+                }
             }
         }
-
 
         return dfa;
     }

@@ -56,36 +56,36 @@ public class ZoneDfaTransFunc<S, P extends Prec> implements TransFunc<ZoneDfaSta
             builder.and(inv.getClockConstr());
         }
         if (builder.build().isBottom()) {
-            return Collections.emptyList();
+            return Collections.singleton(ZoneDfaState.create(builder.build(), nextDfaState));
         }
+
         for (Guard.ClockGuard guard : constraints.getClockGuards()) {
             builder.and(guard.getClockConstr());
         }
         if (builder.build().isBottom()) {
-            return Collections.emptyList();
+            return Collections.singleton(ZoneDfaState.create(builder.build(), nextDfaState));
         }
+
         for (Update reset : constraints.getResets()) {
             if (reset.isClockUpdate()) {
                 builder.execute(reset.asClockUpdate().getClockOp());
             }
         }
-        for (Guard.ClockGuard inv : constraints.getTargetInvariants()) {
-            builder.and(inv.getClockConstr());
-        }
-        if (builder.build().isBottom()) {
-            return Collections.emptyList();
-        }
+
         builder.up();
 
         for (Guard.ClockGuard inv : constraints.getTargetInvariants()) {
             builder.and(inv.getClockConstr());
+        }
+        if (builder.build().isBottom()) {
+            return Collections.singleton(ZoneDfaState.create(builder.build(), nextDfaState));
         }
 
         builder.norm(ceilings);
 
         ZoneState nextZone = builder.build();
         if (nextZone.isBottom()) {
-            return Collections.emptyList();
+            return Collections.singleton(ZoneDfaState.create(nextZone, nextDfaState));
         }
 
         ZoneDfaState<S> nextState = ZoneDfaState.create(nextZone, nextDfaState);

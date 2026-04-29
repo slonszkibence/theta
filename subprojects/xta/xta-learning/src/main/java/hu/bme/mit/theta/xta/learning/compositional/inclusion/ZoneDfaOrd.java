@@ -1,20 +1,19 @@
 package hu.bme.mit.theta.xta.learning.compositional.inclusion;
 
 import hu.bme.mit.theta.analysis.PartialOrd;
-import hu.bme.mit.theta.analysis.zone.ZoneOrd;
-import hu.bme.mit.theta.analysis.zone.ZoneState;
+import hu.bme.mit.theta.analysis.zone.BoundFunc;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ZoneDfaOrd<S> implements PartialOrd<ZoneDfaState<S>> {
-    private final PartialOrd<ZoneState> zoneOrd;
+    private final BoundFunc luBounds;
 
-    private ZoneDfaOrd() {
-        this.zoneOrd = ZoneOrd.getInstance();
+    private ZoneDfaOrd(BoundFunc luBounds) {
+        this.luBounds = checkNotNull(luBounds);
     }
 
-    public static<S> ZoneDfaOrd<S> create() {
-        return new ZoneDfaOrd<>();
+    public static <S> ZoneDfaOrd<S> create(BoundFunc luBounds) {
+        return new ZoneDfaOrd<>(luBounds);
     }
 
     @Override
@@ -25,7 +24,6 @@ public class ZoneDfaOrd<S> implements PartialOrd<ZoneDfaState<S>> {
         if (!state1.getDfaState().equals(state2.getDfaState())) {
             return false;
         }
-
-        return zoneOrd.isLeq(state1.getZoneState(), state2.getZoneState());
+        return state1.getZoneState().isLeq(state2.getZoneState(), luBounds);
     }
 }

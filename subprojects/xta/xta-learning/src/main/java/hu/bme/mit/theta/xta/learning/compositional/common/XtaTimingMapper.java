@@ -33,9 +33,8 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
         this.outputFunction = outputFunction;
 
         for (XtaProcess process : xtaSystem.getProcesses()) {
-            if (process.getName().equals("ErrorProc")) continue;
-
             for (var edge : process.getEdges()) {
+                if (!isTimingRelevant(edge)) continue;
 
                 List<Guard.ClockGuard> clockGuards = getClockGuardsForEdge(edge);
                 List<Update> clockResets = getClockUpdatesForEdge(edge);
@@ -129,5 +128,19 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
         }
 
         return clockInvariants;
+    }
+
+    private static boolean isTimingRelevant(XtaProcess.Edge edge) {
+        for (Guard g : edge.getGuards()) {
+            if (g.isClockGuard()) return true;
+        }
+        for (Update u : edge.getUpdates()) {
+            if (u.isClockUpdate()) return true;
+        }
+        List<Guard> srcInvs = edge.getSource().getInvars().stream()
+                .filter(Guard::isClockGuard).toList();
+        List<Guard> tgtInvs = edge.getTarget().getInvars().stream()
+                .filter(Guard::isClockGuard).toList();
+        return !srcInvs.equals(tgtInvs);
     }
 }

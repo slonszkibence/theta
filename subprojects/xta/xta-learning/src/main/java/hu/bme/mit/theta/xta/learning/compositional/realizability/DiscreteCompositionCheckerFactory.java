@@ -11,6 +11,9 @@ import hu.bme.mit.theta.analysis.algorithm.ArgNode;
 import hu.bme.mit.theta.analysis.algorithm.cegar.Abstractor;
 import hu.bme.mit.theta.analysis.algorithm.cegar.AbstractorResult;
 import hu.bme.mit.theta.analysis.algorithm.cegar.BasicAbstractor;
+import hu.bme.mit.theta.analysis.algorithm.cegar.CegarChecker;
+import hu.bme.mit.theta.analysis.algorithm.cegar.Refiner;
+import hu.bme.mit.theta.analysis.expl.ExplPrec;
 import hu.bme.mit.theta.analysis.waitlist.FifoWaitlist;
 import hu.bme.mit.theta.analysis.waitlist.LifoWaitlist;
 import hu.bme.mit.theta.analysis.waitlist.RandomWaitlist;
@@ -22,7 +25,8 @@ import java.util.function.Predicate;
 public class DiscreteCompositionCheckerFactory {
     private DiscreteCompositionCheckerFactory() {}
 
-    public static<S, P extends Prec> SafetyChecker<DiscreteCompositionState<S>, XtaAction, P> create(
+
+    public static <S, P extends Prec> SafetyChecker<DiscreteCompositionState<S>, XtaAction, P> create(
             DiscreteCompositionStrategy strategy,
             DiscreteCompositionAnalysis<S, P> analysis,
             LTS<DiscreteCompositionState<S>, XtaAction> lts,
@@ -39,11 +43,12 @@ public class DiscreteCompositionCheckerFactory {
                 ArgBuilder.create(lts, analysis, targetPred, true);
 
         Abstractor<DiscreteCompositionState<S>, XtaAction, P> abstractor = BasicAbstractor
-                                                                            .builder(argBuilder)
-                                                                            .waitlist(waitlist)
-                                                                            .projection(state -> state)
-                                                                            .build();
-        return  prec -> {
+                .builder(argBuilder)
+                .waitlist(waitlist)
+                .projection(state -> state)
+                .build();
+
+        return prec -> {
             ARG<DiscreteCompositionState<S>, XtaAction> arg = abstractor.createArg();
             AbstractorResult result = abstractor.check(arg, prec);
 
@@ -55,5 +60,30 @@ public class DiscreteCompositionCheckerFactory {
                 return SafetyResult.unsafe(cex.toTrace(), arg);
             }
         };
+    }
+
+    public static <S> SafetyChecker<DiscreteCompositionState<S>, XtaAction, ExplPrec> createCegar(
+            DiscreteCompositionStrategy strategy,
+            DiscreteCompositionAnalysis<S, ExplPrec> analysis,
+            LTS<DiscreteCompositionState<S>, XtaAction> lts,
+            Predicate<DiscreteCompositionState<S>> targetPred,
+            Refiner<DiscreteCompositionState<S>, XtaAction, ExplPrec> refiner
+    ) {
+        Waitlist<ArgNode<DiscreteCompositionState<S>, XtaAction>> waitlist = switch (strategy) {
+            case RANDOM -> RandomWaitlist.create();
+            case BFS, CEGAR_CHECKER -> FifoWaitlist.create();
+            case DFS -> LifoWaitlist.create();
+        };
+
+        ArgBuilder<DiscreteCompositionState<S>, XtaAction, ExplPrec> argBuilder =
+                ArgBuilder.create(lts, analysis, targetPred, true);
+
+        Abstractor<DiscreteCompositionState<S>, XtaAction, ExplPrec> abstractor = BasicAbstractor
+                .builder(argBuilder)
+                .waitlist(waitlist)
+                .projection(state -> state)
+                .build();
+
+        return CegarChecker.create(abstractor, refiner);
     }
 }

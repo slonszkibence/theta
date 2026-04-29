@@ -3,11 +3,6 @@ package hu.bme.mit.theta.xta.learning.compositional.realizability;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import hu.bme.mit.theta.analysis.LTS;
-import hu.bme.mit.theta.analysis.expl.ExplState;
-import hu.bme.mit.theta.core.type.Expr;
-import hu.bme.mit.theta.core.type.booltype.BoolExprs;
-import hu.bme.mit.theta.core.type.booltype.BoolType;
-import hu.bme.mit.theta.xta.Guard;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
@@ -69,24 +64,18 @@ public class DiscreteCompositionLts<S> implements LTS<DiscreteCompositionState<S
             edges.addAll(xtaAction.asBroadcast().getRecvEdges());
         }
 
+        S currDfaState = dfaState;
         for (XtaProcess.Edge edge : edges) {
             String symbol = XtaTimingMapper.generateSymbolForEdge(edge);
 
             if (alphabet.containsSymbol(symbol)) {
-                S nextDfaState = productDfa.getTransition(dfaState, symbol);
+                currDfaState = productDfa.getTransition(currDfaState, symbol);
 
-                if (nextDfaState == null) {
-                    return true; // No transition in product DFA: allow action, DFA state stays unchanged
+                if (currDfaState == null) {
+                    return false;
                 }
-                return productDfa.isAccepting(nextDfaState);
             }
         }
-        return true;
-    }
-
-    private boolean eval(Guard guard, ExplState state) {
-        Expr<BoolType> guardExpr = guard.toExpr();
-        Expr<BoolType> simplifiedExpr = guardExpr.eval(state);
-        return simplifiedExpr.equals(BoolExprs.True());
+        return productDfa.isAccepting(currDfaState);
     }
 }

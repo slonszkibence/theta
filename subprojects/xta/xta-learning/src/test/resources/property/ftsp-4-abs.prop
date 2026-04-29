@@ -1,0 +1,1 @@
+A[] counter == MAX_COUNT imply (sp1.myroot == 1 && sp2.myroot == 1 && sp3.myroot == 1 && last.myroot == 1)
