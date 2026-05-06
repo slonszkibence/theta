@@ -66,7 +66,7 @@ public class ZoneDfaTransFunc<S, P extends Prec> implements TransFunc<ZoneDfaSta
      * @return A new {@link ZoneDfaTransFunc} instance.
      */
     public static<S, P extends Prec> ZoneDfaTransFunc<S, P> create
-            (DFA<S, String> hypothesis, Map<VarDecl<RatType>, Integer> ceilings, XtaTimingMapper<?, ?> mapper) {
+    (DFA<S, String> hypothesis, Map<VarDecl<RatType>, Integer> ceilings, XtaTimingMapper<?, ?> mapper) {
         return new ZoneDfaTransFunc<>(hypothesis, ceilings, mapper);
     }
 

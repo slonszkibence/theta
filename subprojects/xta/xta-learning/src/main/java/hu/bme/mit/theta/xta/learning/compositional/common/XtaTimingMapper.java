@@ -101,10 +101,8 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
      * @return A unique string of the form {@code "Source->Target_<hash>"}.
      */
     public static String generateSymbolForEdge(XtaProcess.Edge edge) {
-        if (edge.getSync().isPresent()) {
-            return edge.getSync().get().getLabel().getName();
-        }
-        return edge.getSource().getName() + "->" + edge.getTarget().getName();
+        return edge.getSource().getName() + "->" + edge.getTarget().getName() +
+                "_" + Math.abs(System.identityHashCode(edge));
     }
 
     /**

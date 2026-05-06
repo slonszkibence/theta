@@ -108,7 +108,7 @@ public class DiscreteCompositionRefiner<S extends ExprState, prodS, P extends Pr
 
         final ArgTrace<DiscreteCompositionState<S, prodS>, XtaAction> cex =
                 arg.getCexs().findFirst()
-                   .orElseThrow(() -> new AssertionError("No counterexample in unsafe ARG"));
+                        .orElseThrow(() -> new AssertionError("No counterexample in unsafe ARG"));
 
         final Trace<DiscreteCompositionState<S, prodS>, XtaAction> fullTrace = cex.toTrace();
 

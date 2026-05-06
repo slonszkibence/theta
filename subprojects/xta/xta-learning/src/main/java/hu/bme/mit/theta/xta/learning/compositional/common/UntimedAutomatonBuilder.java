@@ -7,9 +7,7 @@ import net.automatalib.automaton.fsa.impl.FastDFA;
 import net.automatalib.automaton.fsa.impl.FastDFAState;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Builds the untimed DFA representation of a single {@link XtaProcess}.
@@ -31,6 +29,7 @@ public class UntimedAutomatonBuilder {
 
     public static FastDFA<String> build(XtaProcess process, Alphabet<String> alphabet) {
         FastDFA<String> dfa = new FastDFA<>(alphabet);
+
         Map<XtaProcess.Loc, FastDFAState> stateMap = new HashMap<>();
 
         for (XtaProcess.Loc loc : process.getLocs()) {
@@ -42,7 +41,6 @@ public class UntimedAutomatonBuilder {
             }
         }
 
-        Set<String> processSymbols = new HashSet<>();
         for (XtaProcess.Loc loc : process.getLocs()) {
             for (XtaProcess.Edge edge : loc.getOutEdges()) {
                 String symbol = XtaTimingMapper.generateSymbolForEdge(edge);

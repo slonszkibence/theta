@@ -21,9 +21,9 @@ import hu.bme.mit.theta.xta.learning.algorithm.EQOracleFactory;
 import hu.bme.mit.theta.xta.learning.algorithm.EQOracleType;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmFactory;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
+import hu.bme.mit.theta.xta.learning.compositional.common.ProductAutomatonBuilder;
 import hu.bme.mit.theta.xta.learning.compositional.common.UntimedAutomatonBuilder;
 import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
-import hu.bme.mit.theta.xta.learning.compositional.dfa.*;
 import hu.bme.mit.theta.xta.learning.compositional.inclusion.XtaInclusionOracle;
 import hu.bme.mit.theta.xta.learning.compositional.realizability.*;
 import hu.bme.mit.theta.xta.learning.compositional.sul.XtaTPrimeSul;
@@ -337,7 +337,6 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
         Map<VarDecl<RatType>, Integer> ceilings = computeCeilings(xtaSystem);
         BoundFunc luBounds = computeLuBounds(xtaSystem);
 
-        Map<VarDecl<RatType>, Integer> ceilings = computeCeilings(xtaSystem);
         XtaTPrimeSul sul = XtaTPrimeSul.create(ceilings);
         XtaTimingMapper<Boolean, Boolean> mapper = XtaTimingMapper.create(xtaSystem, output -> output);
         Alphabet<String> alphabet = Alphabets.fromCollection(mapper.getAlphabet());
