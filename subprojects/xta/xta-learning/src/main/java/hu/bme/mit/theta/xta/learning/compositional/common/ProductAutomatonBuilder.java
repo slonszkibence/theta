@@ -10,17 +10,32 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 
+/**
+ * Builds the synchronous product automaton {@code A ‖ H} from two DFAs.
+ * <p>
+ * In the learning-based compositional model checking algorithm, once the
+ * learning algorithm has found a hypothesis {@code H} that satisfies
+ * {@code L(T) ⊆ L(H)}, the product {@code A ‖ H} is constructed and
+ * handed to the finite-state model checker to verify whether
+ * {@code L(A ‖ H) ⊆ Spec} holds.
+ * <p>
+ * The product is computed by a standard BFS over reachable state pairs
+ * {@code (s_A, s_H)}. A state in the product is accepting if and only if
+ * both component states are accepting, corresponding to the language
+ * identity {@code L(A ‖ H) = L(A) ∩ L(H)}.
+ */
 public class ProductAutomatonBuilder {
 
     private ProductAutomatonBuilder() {}
 
 
-    public static <S1, S2> FastDFA<String> buildProduct(
-            DFA<S1, String> untimedA,
-            DFA<S2, String> learnedH,
-            Alphabet<String> alphabet) {
+    public static <S1, S2, I> FastDFA<I> buildProduct(
+            DFA<S1, I> untimedA,
+            DFA<S2, I> learnedH,
+            Alphabet<I> alphabet
+    ) {
 
-        FastDFA<String> productDfa = new FastDFA<>(alphabet);
+        FastDFA<I> productDfa = new FastDFA<>(alphabet);
         Map<StatePair<S1, S2>, FastDFAState> visited = new HashMap<>();
         Queue<StatePair<S1, S2>> queue = new ArrayDeque<>();
 
@@ -42,7 +57,7 @@ public class ProductAutomatonBuilder {
             StatePair<S1, S2> curr = queue.poll();
             FastDFAState prodCurrState = visited.get(curr);
 
-            for (String symbol : alphabet) {
+            for (I symbol : alphabet) {
                 S1 succA = untimedA.getSuccessor(curr.s1(), symbol);
                 S2 succH = learnedH.getSuccessor(curr.s2(), symbol);
 

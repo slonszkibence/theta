@@ -15,6 +15,8 @@ import hu.bme.mit.theta.analysis.waitlist.FifoWaitlist;
 import hu.bme.mit.theta.analysis.waitlist.Waitlist;
 import hu.bme.mit.theta.analysis.zone.BoundFunc;
 import hu.bme.mit.theta.analysis.zone.ZonePrec;
+import hu.bme.mit.theta.common.logging.Logger;
+import hu.bme.mit.theta.common.logging.NullLogger;
 import hu.bme.mit.theta.core.decl.VarDecl;
 import hu.bme.mit.theta.core.type.rattype.RatType;
 import hu.bme.mit.theta.xta.learning.compositional.common.LearnLibAction;
@@ -28,26 +30,39 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 
 public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracle<String> {
+    private static final int ARG_LOG_INTERVAL = 500;
+
     private final Map<VarDecl<RatType>, Integer> ceilings;
     private final XtaTimingMapper<Boolean, Boolean> mapper;
     private final BoundFunc luBounds;
     private final MembershipOracle.DFAMembershipOracle<String> mqOracle;
+    private final Logger logger;
 
     private XtaInclusionOracle(Map<VarDecl<RatType>, Integer> ceilings,
                                XtaTimingMapper<Boolean, Boolean> mapper,
                                BoundFunc luBounds,
-                               MembershipOracle.DFAMembershipOracle<String> mqOracle) {
+                               MembershipOracle.DFAMembershipOracle<String> mqOracle,
+                               Logger logger) {
         this.ceilings = checkNotNull(ceilings);
         this.mapper = checkNotNull(mapper);
         this.luBounds = checkNotNull(luBounds);
         this.mqOracle = checkNotNull(mqOracle);
+        this.logger = checkNotNull(logger);
     }
 
     public static XtaInclusionOracle create(Map<VarDecl<RatType>, Integer> ceilings,
                                             XtaTimingMapper<Boolean, Boolean> mapper,
                                             BoundFunc luBounds,
                                             MembershipOracle.DFAMembershipOracle<String> mqOracle) {
-        return new XtaInclusionOracle(ceilings, mapper, luBounds, mqOracle);
+        return new XtaInclusionOracle(ceilings, mapper, luBounds, mqOracle, NullLogger.getInstance());
+    }
+
+    public static XtaInclusionOracle create(Map<VarDecl<RatType>, Integer> ceilings,
+                                            XtaTimingMapper<Boolean, Boolean> mapper,
+                                            BoundFunc luBounds,
+                                            MembershipOracle.DFAMembershipOracle<String> mqOracle,
+                                            Logger logger) {
+        return new XtaInclusionOracle(ceilings, mapper, luBounds, mqOracle, logger);
     }
 
     @Override
@@ -74,10 +89,24 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
         waitlist.addAll(arg.getInitNodes());
 
         Map<S, List<ArgNode<ZoneDfaState<S>, LearnLibAction<String>>>> passed = new HashMap<>();
+        long startTime = System.currentTimeMillis();
+        int nodeCount = 0;
+
+        logger.write(Logger.Level.SUBSTEP,
+                "  [InclusionOracle] ARG-kifejtés kezdődik (hipotézis állapotok: %d, ábécé mérete: %d)%n",
+                hypothesis.size(), inputs.size());
 
         while (!waitlist.isEmpty()) {
             ArgNode<ZoneDfaState<S>, LearnLibAction<String>> node = waitlist.remove();
             S currentDfaState = node.getState().getDfaState();
+            nodeCount++;
+
+            if (nodeCount % ARG_LOG_INTERVAL == 0) {
+                logger.write(Logger.Level.SUBSTEP,
+                        "  [InclusionOracle] %d csúcs kifejtve, passed=%d, elapsed=%d ms%n",
+                        nodeCount, passed.values().stream().mapToInt(List::size).sum(),
+                        System.currentTimeMillis() - startTime);
+            }
 
 
             for (String symbol : inputs) {
@@ -124,6 +153,9 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
             waitlist.addAll(node.getSuccNodes());
         }
 
+        logger.write(Logger.Level.SUBSTEP,
+                "  [InclusionOracle] Konvergált — %d csúcs kifejtve, %d ms alatt, ellenpélda: nincs%n",
+                nodeCount, System.currentTimeMillis() - startTime);
         return null;
     }
 

@@ -38,10 +38,10 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
 
                 List<Guard.ClockGuard> clockGuards = getClockGuardsForEdge(edge);
                 List<Update> clockResets = getClockUpdatesForEdge(edge);
-                List<Guard.ClockGuard> sourcInvs = getClockInvariantsForLoc(edge.getSource());
+                List<Guard.ClockGuard> sourceInvs = getClockInvariantsForLoc(edge.getSource());
                 List<Guard.ClockGuard> targetInvs = getClockInvariantsForLoc(edge.getTarget());
 
-                TransitionConstraints constraints = TransitionConstraints.create(clockGuards, clockResets, sourcInvs, targetInvs);
+                TransitionConstraints constraints = TransitionConstraints.create(clockGuards, clockResets, sourceInvs, targetInvs);
                 String edgeName = generateSymbolForEdge(edge);
                 transitionConstraints.put(edgeName, constraints);
             }
@@ -91,11 +91,24 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
         return transitionConstraints.keySet();
     }
 
+    /**
+     * Generates a unique string symbol for the given edge, used as the abstract
+     * input alphabet symbol in the learning algorithm.
+     * The symbol encodes the source and target location names, disambiguated by
+     * the edge's identity hash to handle parallel edges between the same locations.
+     *
+     * @param edge The timed automaton edge to generate a symbol for.
+     * @return A unique string of the form {@code "Source->Target_<hash>"}.
+     */
     public static String generateSymbolForEdge(XtaProcess.Edge edge) {
         return edge.getSource().getName() + "->" + edge.getTarget().getName() +
                 "_" + Math.abs(System.identityHashCode(edge));
     }
 
+    /**
+     * @param edge The timed automaton edge.
+     * @return The list of clock guards.
+     */
     private List<Guard.ClockGuard> getClockGuardsForEdge(XtaProcess.Edge edge) {
         List<Guard.ClockGuard> clockGuards = new ArrayList<>();
 
@@ -107,6 +120,10 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
         return clockGuards;
     }
 
+    /**
+     * @param edge The timed automaton edge.
+     * @return The list of clock updates (resets).
+     */
     private List<Update> getClockUpdatesForEdge(XtaProcess.Edge edge) {
         List<Update> clockUpdates = new ArrayList<>();
 
@@ -118,6 +135,10 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
         return clockUpdates;
     }
 
+    /**
+     * @param loc The timed automaton location.
+     * @return The list of location invariants.
+     */
     private List<Guard.ClockGuard> getClockInvariantsForLoc(XtaProcess.Loc loc) {
         List<Guard.ClockGuard> clockInvariants = new ArrayList<>();
 
@@ -130,6 +151,12 @@ public class XtaTimingMapper<AO, CO> implements SULMapper<String, AO, Transition
         return clockInvariants;
     }
 
+    /**
+     * Returns true if the edge has any timing-relevant constraints: clock guards,
+     * clock resets, or differing source and target invariants.
+     * Edges without any timing information are excluded from the mapper's alphabet,
+     * as they carry no constraints for the T' SUL.
+     */
     private static boolean isTimingRelevant(XtaProcess.Edge edge) {
         for (Guard g : edge.getGuards()) {
             if (g.isClockGuard()) return true;

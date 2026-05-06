@@ -7,8 +7,15 @@ import hu.bme.mit.theta.xta.Update;
 import java.util.List;
 
 /**
- * A data structure holding the clock guards and clock updates (resets) associated with a transition.
- * It is used to separate timing constraints from discrete logic during the learning process.
+ * A data structure holding the timing constraints associated with a single
+ * transition of the timed automaton {@code T}.
+ * <p>
+ * In the learning-based model checking framework, the separation of concerns
+ * principle requires that timing information is handled exclusively by the
+ * timed automaton component. This class captures all clock-related constraints
+ * of an edge — guards, resets, and location invariants — so that they can be
+ * evaluated independently of the discrete logic during membership and
+ * realizability queries.
  */
 public class TransitionConstraints {
     private final List<ClockGuard> clockGuards;
@@ -32,7 +39,9 @@ public class TransitionConstraints {
      *
      * @param clockGuards The list of clock guards on the edge.
      * @param resets      The list of clock updates (resets) on the edge.
-     * @return A new GuardResetPair object.
+     * @param sourceInvariants The list of source invariants on the source location.
+     * @param targetInvariants The list of target invariants on the target location.
+     * @return A new TransitionConstraints object.
      */
     public static TransitionConstraints create(final List<ClockGuard> clockGuards,
                                                final List<Update> resets,
@@ -55,9 +64,16 @@ public class TransitionConstraints {
         return resets;
     }
 
+    /**
+     * @return The list of source invariants.
+     */
     public List<Guard.ClockGuard> getSourceInvariants() {
         return sourceInvariants;
     }
+
+    /**
+     * @return The list of target invariants.
+     */
     public List<Guard.ClockGuard> getTargetInvariants() {
         return targetInvariants;
     }

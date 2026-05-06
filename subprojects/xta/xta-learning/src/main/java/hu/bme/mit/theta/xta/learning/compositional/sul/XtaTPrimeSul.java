@@ -37,7 +37,9 @@ public class XtaTPrimeSul implements SUL<TransitionConstraints, Boolean> {
 
     /**
      * Initializes the SUL before a new query.
-     * Resets the current zone to the initial state (all clocks equal to zero).
+     * Resets the zone to the initial zone: all clocks are set to zero,
+     * followed by an immediate time elapse (up), representing that time
+     * may pass before the first transition.
      */
     @Override
     public void pre() {
@@ -53,8 +55,10 @@ public class XtaTPrimeSul implements SUL<TransitionConstraints, Boolean> {
     }
 
     /**
-     * Executes a single step (transition) in the SUL.
-     * Applies time delay, clock guards, clock resets, and normalization to the current zone.
+     * Applies the following operations in order: source location invariants,
+     * clock guards, clock resets, time elapse (up), target location invariants,
+     * and finally normalization. Returns {@code false} and stops early
+     * if the zone becomes empty (Bottom) at any intermediate step.
      *
      * @param in The timing constraints and resets of the transition.
      * @return {@code true} if the resulting zone is valid (feasible), {@code false} if it is empty (Bottom).
