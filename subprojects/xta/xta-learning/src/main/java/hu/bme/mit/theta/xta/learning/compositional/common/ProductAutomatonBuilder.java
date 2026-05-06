@@ -8,17 +8,34 @@ import net.automatalib.automaton.fsa.impl.FastDFAState;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 
+/**
+ * Builds the synchronous product automaton {@code A ‖ H} from two DFAs.
+ * <p>
+ * In the learning-based compositional model checking algorithm, once the
+ * learning algorithm has found a hypothesis {@code H} that satisfies
+ * {@code L(T) ⊆ L(H)}, the product {@code A ‖ H} is constructed and
+ * handed to the finite-state model checker to verify whether
+ * {@code L(A ‖ H) ⊆ Spec} holds.
+ * <p>
+ * The product is computed by a standard BFS over reachable state pairs
+ * {@code (s_A, s_H)}. A state in the product is accepting if and only if
+ * both component states are accepting, corresponding to the language
+ * identity {@code L(A ‖ H) = L(A) ∩ L(H)}.
+ */
 public class ProductAutomatonBuilder {
 
-    public static <S1, S2> FastDFA<String> buildProduct(
-            DFA<S1, String> untimedA,
-            DFA<S2, String> learnedH,
-            Alphabet<String> alphabet) {
+    private ProductAutomatonBuilder() {}
 
-        FastDFA<String> productDfa = new FastDFA<>(alphabet);
+
+    public static <S1, S2, I> FastDFA<I> buildProduct(
+            DFA<S1, I> untimedA,
+            DFA<S2, I> learnedH,
+            Alphabet<I> alphabet
+    ) {
+
+        FastDFA<I> productDfa = new FastDFA<>(alphabet);
         Map<StatePair<S1, S2>, FastDFAState> visited = new HashMap<>();
         Queue<StatePair<S1, S2>> queue = new ArrayDeque<>();
 
@@ -40,9 +57,9 @@ public class ProductAutomatonBuilder {
             StatePair<S1, S2> curr = queue.poll();
             FastDFAState prodCurrState = visited.get(curr);
 
-            for (String symbol : alphabet) {
-                S1 succA = untimedA.getSuccessor(curr.s1, symbol);
-                S2 succH = learnedH.getSuccessor(curr.s2, symbol);
+            for (I symbol : alphabet) {
+                S1 succA = untimedA.getSuccessor(curr.s1(), symbol);
+                S2 succH = learnedH.getSuccessor(curr.s2(), symbol);
 
                 if (symbol.contains("->ErrorLoc")) {
                     if (succA == null) succA = curr.s1;
@@ -69,28 +86,6 @@ public class ProductAutomatonBuilder {
         return productDfa;
     }
 
-    private ProductAutomatonBuilder() {}
-
-    private static class StatePair<S1, S2> {
-        public final S1 s1;
-        public final S2 s2;
-
-        public StatePair(S1 s1, S2 s2) {
-            this.s1 = s1;
-            this.s2 = s2;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            StatePair<?, ?> that = (StatePair<?, ?>) o;
-            return Objects.equals(s1, that.s1) && Objects.equals(s2, that.s2);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(s1, s2);
-        }
+    private record StatePair<S1, S2>(S1 s1, S2 s2) {
     }
 }

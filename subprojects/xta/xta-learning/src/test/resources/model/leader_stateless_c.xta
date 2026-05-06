@@ -1,0 +1,165 @@
+const int N = 3;
+typedef int[0,N] pid_t;
+
+chan wakeup[N];
+chan crash[N];
+
+pid_t leader[N];
+pid_t id[N];
+
+broadcast chan broadchan;
+pid_t msg;
+pid_t sender;
+
+int[0,20] cnt;
+int[0,3] crash_cnt;
+
+process Scheduler() {
+    state
+        L0, L1, error_state, L2, L3, L4, L5;
+    commit
+        L1, L2, L3, L4, L5;
+    init
+        L2;
+    trans
+        L5 -> L0 { },
+        L4 -> L5 { guard id[0]!=2 && id[1] != 2; assign id[2] =2; },
+        L4 -> L5 { guard id[0]!=0 && id[1] != 0; assign id[2]=0; },
+        L4 -> L5 { guard id[0]!=1 && id[1]!=1; assign id[2]=1; },
+        L3 -> L4 { guard id[0]!=2; assign id[1]=2; },
+        L3 -> L4 { guard id[0]!=1; assign id[1]=1; },
+        L3 -> L4 { guard id[0]!=0; assign id[1]=0; },
+        L2 -> L3 { assign id[0]=2; },
+        L2 -> L3 { assign id[0]=1; },
+        L2 -> L3 { assign id[0]=0; },
+        L1 -> L0 { guard cnt>=20; },
+        L0 -> L0 { },
+        L0 -> L0 { sync wakeup[2]!; },
+        L0 -> L0 { sync wakeup[1]!; },
+        L0 -> error_state { guard (leader[0] != 0 || leader[1] != 0 || leader[2] != 0) && cnt >= 15; },
+        L1 -> L0 { guard cnt<20; assign cnt=cnt+1; },
+        L0 -> L1 { sync wakeup[0]!; },
+        L0 -> L0 { guard crash_cnt<3; sync crash[0]!; assign crash_cnt = crash_cnt + 1, cnt=0; };
+}
+
+process Process0(const int i) {
+    clock x;
+    int[0,4] hb;
+    pid_t prev;
+
+    state
+        ok { x<=3 },
+        sending,
+        crashed { x<=3 },
+        initialize;
+    commit
+        sending, initialize;
+    init
+        initialize;
+    trans
+        initialize -> ok { assign leader[i]=N; },
+        crashed -> crashed { sync broadchan?; },
+        crashed -> crashed { assign leader[i]=2; },
+        crashed -> crashed { assign hb=0; },
+        crashed -> crashed { assign hb=1; },
+        crashed -> crashed { assign leader[i]=1; },
+        crashed -> crashed { assign leader[i]=0; },
+        crashed -> crashed { assign hb=4; },
+        crashed -> crashed { assign hb=3; },
+        crashed -> crashed { assign hb=2; },
+        crashed -> ok { guard x==3; sync wakeup[i]?; assign x=0; },
+        ok -> crashed { sync crash[i]?; assign x=0; },
+
+        ok -> ok { guard msg < id[i] && sender < id[i]; sync broadchan?; assign prev=leader[i], leader[i]=msg, hb=0; },
+        ok -> ok { guard msg < id[i] && sender >= id[i]; sync broadchan?; assign prev=leader[i], leader[i]=msg; },
+        ok -> ok { guard msg >= id[i] && sender < id[i]; sync broadchan?; assign hb=0; },
+        ok -> ok { guard msg >= id[i] && sender >= id[i]; sync broadchan?; },
+
+        sending -> ok { sync broadchan!; },
+        ok -> sending { guard hb==4 && x == 3; sync wakeup[i]?; assign prev=leader[i], leader[i]=id[i], msg=id[i],sender=id[i], hb=0; },
+        ok -> sending { guard hb<4 && x==3; sync wakeup[i]?; assign hb=hb+1, msg=leader[i],sender=id[i],x=0; };
+}
+
+process Process1(const int i) {
+    clock x;
+    int[0,4] hb;
+    pid_t prev;
+
+    state
+        ok { x<=3 },
+        sending,
+        crashed { x<=3 },
+        initialize;
+    commit
+        sending, initialize;
+    init
+        initialize;
+    trans
+        initialize -> ok { assign leader[i]=N; },
+        crashed -> crashed { sync broadchan?; },
+        crashed -> crashed { assign leader[i]=2; },
+        crashed -> crashed { assign hb=0; },
+        crashed -> crashed { assign hb=1; },
+        crashed -> crashed { assign leader[i]=1; },
+        crashed -> crashed { assign leader[i]=0; },
+        crashed -> crashed { assign hb=4; },
+        crashed -> crashed { assign hb=3; },
+        crashed -> crashed { assign hb=2; },
+        crashed -> ok { guard x==3; sync wakeup[i]?; assign x=0; },
+        ok -> crashed { sync crash[i]?; assign x=0; },
+
+        ok -> ok { guard msg < id[i] && sender < id[i]; sync broadchan?; assign prev=leader[i], leader[i]=msg, hb=0; },
+        ok -> ok { guard msg < id[i] && sender >= id[i]; sync broadchan?; assign prev=leader[i], leader[i]=msg; },
+        ok -> ok { guard msg >= id[i] && sender < id[i]; sync broadchan?; assign hb=0; },
+        ok -> ok { guard msg >= id[i] && sender >= id[i]; sync broadchan?; },
+
+        sending -> ok { sync broadchan!; },
+        ok -> sending { guard hb==4 && x == 3; sync wakeup[i]?; assign prev=leader[i], leader[i]=id[i], msg=id[i],sender=id[i], hb=0; },
+        ok -> sending { guard hb<4 && x==3; sync wakeup[i]?; assign hb=hb+1, msg=leader[i],sender=id[i],x=0; };
+}
+
+process Process2(const int i) {
+    clock x;
+    int[0,4] hb;
+    pid_t prev;
+
+    state
+        ok { x<=3 },
+        sending,
+        crashed { x<=3 },
+        initialize;
+    commit
+        sending, initialize;
+    init
+        initialize;
+    trans
+        initialize -> ok { assign leader[i]=N; },
+        crashed -> crashed { sync broadchan?; },
+        crashed -> crashed { assign leader[i]=2; },
+        crashed -> crashed { assign hb=0; },
+        crashed -> crashed { assign hb=1; },
+        crashed -> crashed { assign leader[i]=1; },
+        crashed -> crashed { assign leader[i]=0; },
+        crashed -> crashed { assign hb=4; },
+        crashed -> crashed { assign hb=3; },
+        crashed -> crashed { assign hb=2; },
+        crashed -> ok { guard x==3; sync wakeup[i]?; assign x=0; },
+        ok -> crashed { sync crash[i]?; assign x=0; },
+
+        // Vételi (receive) logika felbontva
+        ok -> ok { guard msg < id[i] && sender < id[i]; sync broadchan?; assign prev=leader[i], leader[i]=msg, hb=0; },
+        ok -> ok { guard msg < id[i] && sender >= id[i]; sync broadchan?; assign prev=leader[i], leader[i]=msg; },
+        ok -> ok { guard msg >= id[i] && sender < id[i]; sync broadchan?; assign hb=0; },
+        ok -> ok { guard msg >= id[i] && sender >= id[i]; sync broadchan?; },
+
+        sending -> ok { sync broadchan!; },
+        ok -> sending { guard hb==4 && x == 3; sync wakeup[i]?; assign prev=leader[i], leader[i]=id[i], msg=id[i],sender=id[i], hb=0; },
+        ok -> sending { guard hb<4 && x==3; sync wakeup[i]?; assign hb=hb+1, msg=leader[i],sender=id[i],x=0; };
+}
+
+p0 = Process0(0);
+p1 = Process1(1);
+p2 = Process2(2);
+s = Scheduler();
+
+system p0, p1, p2, s;

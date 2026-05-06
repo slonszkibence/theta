@@ -1,0 +1,43 @@
+// TimingDeadlockDemo.xta
+//
+// Célkitűzés: Olyan modell, amelyben a T' hipotézisnek TÖBB ÁLLAPOTA van.
+//
+// Magyarázat:
+//   Az "error" állapot elméletileg elérhető az időzítetlen automatában
+//   (idle -> wait -> error), de az időzítési kényszer MEGAKADÁLYOZZA a valódi elérést:
+//
+//   - A "wait" állapot invariánsa: x <= 3  (legfeljebb 3 időegységet tölthetünk ott)
+//   - Az "error" állapotba lépés feltétele: x >= 5  (legalább 5 időegység kell)
+//   - Következmény: a zóna üressé válik → az "error" soha nem érhető el.
+//
+// T' hipotézis állapotai (miért NEM lesz 1 állapot):
+//   - ε  (kezdő állapot, idle-ban vagyunk): a "wait->error" átmenet NEM szerepel
+//         az időzítetlen automatában idle-ból → mqOracle = true
+//   - "a" (a "idle->wait" átmenet után): a "wait->error" átmenet SZEREPEL az
+//         időzítetlen automatában, DE a zóna üres ([0,3] ∩ {x>=5} = ∅) → mqOracle = false
+//   => A "wait->error" szuffixum megkülönbözteti ε-t és "a"-t → T'-nek ≥ 2 állapota van!
+
+clock x;
+
+process TimingDeadlockDemo() {
+    state
+        idle,
+        wait { x <= 3 },
+        done,
+        error;
+
+    init idle;
+
+    trans
+        // "a" átmenet: belépés a wait állapotba (x nullázása)
+        idle -> wait  { guard x == 0; assign x = 0; },
+
+        // "b" átmenet: sikeres befejezés (x <= 3, ami mindig teljesül a wait-ben)
+        wait -> done  { guard x <= 3; },
+
+        // "c" átmenet: ez az időzítési holtpont!
+        // Az invariáns x <= 3 megakadályozza, hogy x >= 5 legyen.
+        wait -> error { guard x >= 5; };
+}
+
+system TimingDeadlockDemo;

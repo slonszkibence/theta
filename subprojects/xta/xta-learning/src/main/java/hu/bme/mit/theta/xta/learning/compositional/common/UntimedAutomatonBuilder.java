@@ -11,6 +11,21 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Builds the untimed DFA representation of a single {@link XtaProcess}.
+ * <p>
+ * In the learning-based compositional model checking framework, the input
+ * model is seen as a parallel composition {@code A ‖ T}, where {@code A} is
+ * a large finite-state machine and {@code T} is a relatively small timed
+ * automaton. This builder constructs the {@code A} component for a single
+ * process by discarding all clock guards, resets, and invariants, and
+ * retaining only the discrete location structure and the edge labels.
+ * <p>
+ * All locations are mapped to accepting DFA states, since the untimed
+ * automaton captures reachability of discrete behavior rather than
+ * a specific acceptance condition. Edges whose symbols are not present
+ * in the provided alphabet are silently skipped.
+ */
 public class UntimedAutomatonBuilder {
     private UntimedAutomatonBuilder() {}
 
@@ -31,16 +46,8 @@ public class UntimedAutomatonBuilder {
         for (XtaProcess.Loc loc : process.getLocs()) {
             for (XtaProcess.Edge edge : loc.getOutEdges()) {
                 String symbol = XtaTimingMapper.generateSymbolForEdge(edge);
-                processSymbols.add(symbol);
-                dfa.addTransition(stateMap.get(loc), symbol, stateMap.get(edge.getTarget()));
-            }
-        }
-
-        for (XtaProcess.Loc loc : process.getLocs()) {
-            FastDFAState dfaState = stateMap.get(loc);
-            for (String symbol : alphabet) {
-                if (!processSymbols.contains(symbol)) {
-                    dfa.addTransition(dfaState, symbol, dfaState);
+                if (alphabet.containsSymbol(symbol)) {
+                    dfa.addTransition(stateMap.get(loc), symbol, stateMap.get(edge.getTarget()));
                 }
             }
         }
