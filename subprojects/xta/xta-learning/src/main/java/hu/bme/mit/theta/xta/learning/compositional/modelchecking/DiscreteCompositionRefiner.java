@@ -1,7 +1,6 @@
-package hu.bme.mit.theta.xta.learning.compositional.realizability;
+package hu.bme.mit.theta.xta.learning.compositional.modelchecking;
 
 import hu.bme.mit.theta.analysis.Prec;
-import hu.bme.mit.theta.analysis.State;
 import hu.bme.mit.theta.analysis.Trace;
 import hu.bme.mit.theta.analysis.algorithm.ARG;
 import hu.bme.mit.theta.analysis.algorithm.ArgNode;

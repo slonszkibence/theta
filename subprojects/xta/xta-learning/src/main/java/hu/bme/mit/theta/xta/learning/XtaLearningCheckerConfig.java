@@ -25,7 +25,8 @@ import hu.bme.mit.theta.xta.learning.compositional.common.ProductAutomatonBuilde
 import hu.bme.mit.theta.xta.learning.compositional.common.UntimedAutomatonBuilder;
 import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
 import hu.bme.mit.theta.xta.learning.compositional.inclusion.XtaInclusionOracle;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.*;
+import hu.bme.mit.theta.xta.learning.compositional.modelchecking.*;
+import hu.bme.mit.theta.xta.learning.compositional.realizablity.XtaRealizablityOracle;
 import hu.bme.mit.theta.xta.learning.compositional.sul.XtaTPrimeSul;
 
 import net.automatalib.alphabet.Alphabet;
@@ -94,6 +95,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             MembershipOracle.DFAMembershipOracle<String> mqOracle,
             LearningAlgorithm.DFALearner<String> learner,
             EquivalenceOracle<DFA<?, String>, String, Boolean> eqOracle,
+            XtaRealizablityOracle realizablityOracle,
             XtaAnalysis<D, P> xtaAnalysis,
             long[] mqCounter
     ) {}
@@ -228,7 +230,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             logger.write(Logger.Level.MAINSTEP,
                     "  [Counterexample] Length: %d, checking realizability...%n", cexWord.size());
 
-            if (checkRealizability(ctx.mappedSul(), ctx.untimedAutomaton(), cexWord)) {
+            if (ctx.realizablityOracle().isRealizable(cexWord)) {
                 logger.write(Logger.Level.RESULT,
                         "Result: UNSAFE (%d outer iterations, %d MQ, %d ms)%n",
                         outerIteration, ctx.mqCounter()[0], System.currentTimeMillis() - startTime);
@@ -311,26 +313,6 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                 result.isSafe() ? "SAFE" : "UNSAFE", System.currentTimeMillis() - start);
         return new ModelCheckPhaseResult<>(result, productDFA.size());
     }
-
-    // ── Realizability Checking ────────────────────────────────────────────
-
-    private boolean checkRealizability(
-            SUL<String, Boolean> sul, FastDFA<String> untimedAutomaton, Word<String> cexWord) {
-        long start = System.currentTimeMillis();
-        if (!untimedAutomaton.accepts(cexWord)) {
-            logger.write(Logger.Level.MAINSTEP,
-                    "  [Realizability] SPURIOUS (untimed automaton rejects cex) in %d ms%n",
-                    System.currentTimeMillis() - start);
-            return false;
-        }
-        boolean realizable = runMembershipQuery(sul, cexWord);
-        logger.write(Logger.Level.MAINSTEP,
-                "  [Realizability] %s in %d ms%n",
-                realizable ? "REALIZABLE (true bug)" : "SPURIOUS (refining hypothesis)",
-                System.currentTimeMillis() - start);
-        return realizable;
-    }
-
     // ── Context Initialization ───────────────────────────────────────────────────
 
     private CheckContext<D, P> buildContext() {
@@ -353,6 +335,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                 EQOracleFactory.create(eqOracleType, mqOracle,
                         XtaInclusionOracle.create(ceilings, mapper, luBounds, mqOracle, logger),
                         eqMaxDepth, eqRandomMinLength, eqRandomMaxLength, eqRandomMaxTests);
+        XtaRealizablityOracle realizablityOracle = XtaRealizablityOracle.create(mappedSul, untimedAutomaton, logger);
 
         logger.write(Logger.Level.INFO,
                 "[Context] Untimed automaton states: %d, alphabet size: %d%n",
@@ -360,7 +343,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
 
         return new CheckContext<>(
                 alphabet, mappedSul, untimedAutomaton,
-                mqOracle, learner, eqOracle, xtaAnalysis, mqCounter);
+                mqOracle, learner, eqOracle, realizablityOracle, xtaAnalysis, mqCounter);
     }
 
     // ── Checker Builder ─────────────────────────────────────────────────────

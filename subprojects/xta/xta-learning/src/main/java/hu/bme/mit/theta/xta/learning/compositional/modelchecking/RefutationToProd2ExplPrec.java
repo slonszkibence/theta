@@ -1,4 +1,4 @@
-package hu.bme.mit.theta.xta.learning.compositional.realizability;
+package hu.bme.mit.theta.xta.learning.compositional.modelchecking;
 
 import hu.bme.mit.theta.analysis.expl.ExplPrec;
 import hu.bme.mit.theta.analysis.expl.ItpRefToExplPrec;

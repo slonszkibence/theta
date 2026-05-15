@@ -7,7 +7,7 @@ import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheck
 import hu.bme.mit.theta.xta.dsl.XtaDslManager;
 import hu.bme.mit.theta.xta.learning.algorithm.EQOracleType;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.DiscreteCompositionCheckerFactory;
+import hu.bme.mit.theta.xta.learning.compositional.modelchecking.DiscreteCompositionCheckerFactory;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;

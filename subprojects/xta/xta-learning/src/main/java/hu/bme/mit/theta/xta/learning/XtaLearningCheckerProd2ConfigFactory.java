@@ -27,7 +27,7 @@ import hu.bme.mit.theta.xta.analysis.XtaAnalysis;
 import hu.bme.mit.theta.xta.analysis.zone.XtaZoneAnalysis;
 import hu.bme.mit.theta.xta.learning.algorithm.EQOracleType;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.*;
+import hu.bme.mit.theta.xta.learning.compositional.modelchecking.*;
 
 import net.automatalib.automaton.fsa.impl.FastDFAState;
 

@@ -1,4 +1,4 @@
-package hu.bme.mit.theta.xta.learning.compositional.realizability;
+package hu.bme.mit.theta.xta.learning.compositional.modelchecking;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
