@@ -9,7 +9,7 @@ import hu.bme.mit.theta.core.type.rattype.RatType;
 import hu.bme.mit.theta.xta.Guard;
 import hu.bme.mit.theta.xta.Update;
 import hu.bme.mit.theta.xta.learning.compositional.common.TransitionConstraints;
-import hu.bme.mit.theta.xta.learning.compositional.sul.XtaTPrimeSul;
+import hu.bme.mit.theta.xta.learning.compositional.membership.XtaTPrimeSul;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 public class XtaTPrimeSulTest {
-    private XtaTPrimeSul sul;
+    private XtaTPrimeSul membership;
     private VarDecl<RatType> clockX;
     private VarDecl<RatType> clockY;
 
@@ -34,38 +34,38 @@ public class XtaTPrimeSulTest {
         ceilings.put(clockX, 10);
         ceilings.put(clockY, 10);
 
-        sul = XtaTPrimeSul.create(ceilings);
+        membership = XtaTPrimeSul.create(ceilings);
     }
 
     @After
     public void tearDown() {
-        if (sul != null) {
-            sul.post();
+        if (membership != null) {
+            membership.post();
         }
     }
 
     @Test
     public void testSimpleFeasibleStep() {
-        sul.pre();
+        membership.pre();
 
         TransitionConstraints step1 = TransitionConstraints.create(
                 Collections.emptyList(), Collections.emptyList(),
                 Collections.emptyList(), Collections.emptyList()
         );
 
-        boolean result = sul.step(step1);
+        boolean result = membership.step(step1);
         Assert.assertTrue("Az üres tranzíciónak végrehajthatónak kell lennie", result);
     }
 
     @Test
     public void testInfeasibleStepWithConflictingGuards() {
-        sul.pre();
+        membership.pre();
 
         TransitionConstraints step1 = TransitionConstraints.create(
                 List.of(Guard.clockGuard(ClockConstrs.Lt(clockX, 5).toExpr())),
                 Collections.emptyList(), Collections.emptyList(), Collections.emptyList()
         );
-        Assert.assertTrue(sul.step(step1));
+        Assert.assertTrue(membership.step(step1));
 
         TransitionConstraints step2 = TransitionConstraints.create(
                 List.of(
@@ -75,20 +75,20 @@ public class XtaTPrimeSulTest {
                 Collections.emptyList(), Collections.emptyList(), Collections.emptyList()
         );
 
-        boolean result = sul.step(step2);
+        boolean result = membership.step(step2);
         Assert.assertFalse("Egymásnak ellentmondó őrfeltételek esetén false-t kell adnia", result);
     }
 
     @Test
     public void testClockResetMakesStepFeasible() {
-        sul.pre();
+        membership.pre();
 
         TransitionConstraints step1 = TransitionConstraints.create(
                 List.of(Guard.clockGuard(ClockConstrs.Gt(clockX, 5).toExpr())),
                 List.of(new Update.ClockUpdate(ClockOps.Reset(clockX, 0))),
                 Collections.emptyList(), Collections.emptyList()
         );
-        Assert.assertTrue(sul.step(step1));
+        Assert.assertTrue(membership.step(step1));
 
         TransitionConstraints step2 = TransitionConstraints.create(
                 List.of(Guard.clockGuard(ClockConstrs.Lt(clockX, 2).toExpr())),
@@ -96,13 +96,13 @@ public class XtaTPrimeSulTest {
                 Collections.emptyList(), Collections.emptyList()
         );
 
-        boolean result = sul.step(step2);
+        boolean result = membership.step(step2);
         Assert.assertTrue("Az x < 2 feltétel nem teljesülhet, mert a guard x > 5 zónán kerül kiértékelésre (guard ELŐBB fut, mint a reset)", result);
     }
 
     @Test
     public void testTargetInvariantFails() {
-        sul.pre();
+        membership.pre();
 
         TransitionConstraints step1 = TransitionConstraints.create(
                 List.of(Guard.clockGuard(ClockConstrs.Gt(clockX, 5).toExpr())),
@@ -111,7 +111,7 @@ public class XtaTPrimeSulTest {
                 List.of(Guard.clockGuard(ClockConstrs.Leq(clockX, 2).toExpr()))
         );
 
-        boolean result = sul.step(step1);
+        boolean result = membership.step(step1);
         Assert.assertFalse("Az x > 5 guard és az x <= 2 target invariáns ütközik", result);
     }
 }*/

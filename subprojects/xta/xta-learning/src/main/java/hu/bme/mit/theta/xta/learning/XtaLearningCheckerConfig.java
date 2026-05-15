@@ -27,7 +27,7 @@ import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
 import hu.bme.mit.theta.xta.learning.compositional.inclusion.XtaInclusionOracle;
 import hu.bme.mit.theta.xta.learning.compositional.modelchecking.*;
 import hu.bme.mit.theta.xta.learning.compositional.realizablity.XtaRealizablityOracle;
-import hu.bme.mit.theta.xta.learning.compositional.sul.XtaTPrimeSul;
+import hu.bme.mit.theta.xta.learning.compositional.membership.XtaTPrimeSul;
 
 import net.automatalib.alphabet.Alphabet;
 import net.automatalib.alphabet.impl.Alphabets;

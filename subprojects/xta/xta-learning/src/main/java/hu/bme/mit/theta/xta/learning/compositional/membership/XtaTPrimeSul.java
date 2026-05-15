@@ -1,4 +1,4 @@
-package hu.bme.mit.theta.xta.learning.compositional.sul;
+package hu.bme.mit.theta.xta.learning.compositional.membership;
 
 import de.learnlib.sul.SUL;
 
