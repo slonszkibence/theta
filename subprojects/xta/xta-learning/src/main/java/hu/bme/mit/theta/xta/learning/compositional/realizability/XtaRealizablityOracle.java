@@ -1,4 +1,4 @@
-package hu.bme.mit.theta.xta.learning.compositional.realizablity;
+package hu.bme.mit.theta.xta.learning.compositional.realizability;
 
 import de.learnlib.sul.SUL;
 import hu.bme.mit.theta.common.logging.Logger;
