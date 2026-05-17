@@ -48,13 +48,15 @@ import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheckerConfigFactory;
 import hu.bme.mit.theta.xta.analysis.lazy.*;
 import hu.bme.mit.theta.xta.dsl.XtaDslManager;
+import hu.bme.mit.theta.xta.learning.XtaLearningCheckerExplConfigFactory;
+import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
 import hu.bme.mit.theta.xta.utils.CTLOperatorNotSupportedException;
 import hu.bme.mit.theta.xta.utils.MixedDataTimeNotSupportedException;
 
 public final class XtaCli {
 
 	public enum Algorithm {
-		LAZY, EXPERIMENTAL_COMBINED
+		LAZY, EXPERIMENTAL_COMBINED, LEARNING;
 	}
 
 	private static final String JAR_NAME = "theta-xta.jar";
@@ -65,6 +67,9 @@ public final class XtaCli {
 
 	@Parameter(names = {"--model", "-m"}, description = "Path of the input model", required = true)
 	String model;
+
+	@Parameter(names = {"--property", "-p"}, description = "Path of the input property", required = false)
+	String property = null;
 
 	@Parameter(names = {"--algorithm"}, description = "The algorithm to use")
 	Algorithm algorithm = Algorithm.LAZY;
@@ -103,6 +108,9 @@ public final class XtaCli {
 	@Parameter(names = "--combined-noArgCexCheck")
 	boolean noArgCexCheck = false;
 
+	///  Learning algorithm parameters
+	@Parameter(names = {"--learner", "-l"}, description = "Active learning algorithm (LSTAR, TTT, KandV)")
+	LearningAlgorithmType learnerAlgorithm = LearningAlgorithmType.TTT;
 	/// Common algorithm parameters
 
 	@Parameter(names = {"--clock", "-c"}, description = "Refinement strategy for clock variables", required = false)
@@ -166,6 +174,7 @@ public final class XtaCli {
 			switch (algorithm) {
 				case LAZY -> runLazy(system);
 				case EXPERIMENTAL_COMBINED -> runCombined(system);
+				case LEARNING -> runLearning(system);
 			}
 		} catch (final Throwable ex) {
 			printError(ex);
@@ -213,6 +222,15 @@ public final class XtaCli {
 		}
 	}
 
+	private void runLearning(final XtaSystem system) {
+		final var config = XtaLearningCheckerExplConfigFactory.create(system)
+				.learningAlgorithmType(learnerAlgorithm)
+				.build();
+
+		final var result = config.check();
+		resultPrinter(result.isSafe(), result.isUnsafe(), system);
+	}
+
 	private void resultPrinter(final boolean isSafe, final boolean isUnsafe, final XtaSystem system) {
 		if (isSafe) {
 			switch (system.getPropertyKind()) {
@@ -242,8 +260,24 @@ public final class XtaCli {
 
 	private XtaSystem loadModel() throws Exception {
 		try {
-			try (InputStream inputStream = new FileInputStream(model)) {
-				return XtaDslManager.createSystem(inputStream);
+			if (property != null) {
+				try (InputStream xtaStream = new FileInputStream(model);
+					 InputStream propStream = new FileInputStream(property)) {
+
+					InputStream newlineStream = new ByteArrayInputStream("\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+					SequenceInputStream sequenceInputStream = new SequenceInputStream(
+							java.util.Collections.enumeration(
+									java.util.List.of(xtaStream, newlineStream, propStream)
+							)
+					);
+
+					return XtaDslManager.createSystem(sequenceInputStream);
+				}
+			} else {
+				try (InputStream inputStream = new FileInputStream(model)) {
+					return XtaDslManager.createSystem(inputStream);
+				}
 			}
 		} catch (CTLOperatorNotSupportedException ex) {
 			ex.printStackTrace();
