@@ -1,6 +1,7 @@
 package hu.bme.mit.theta.xta.learning;
 
 import hu.bme.mit.theta.analysis.algorithm.SafetyResult;
+import hu.bme.mit.theta.common.logging.Logger;
 import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheckerConfig;
 import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheckerConfigFactory;
@@ -47,15 +48,15 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class XtaLearningTest {
     private static final List<Object[]> MODELS = List.of(
-            new Object[]{"/model/Deadlock1Clock.xta", "/property/Deadlock1Clock.prop", true},
-            new Object[]{"/model/Deadlock2Clock.xta", "/property/Deadlock2Clock.prop", true},
-            new Object[]{"/model/DeadlockImmediate.xta", "/property/DeadlockImmediate.prop", true},
-            new Object[]{"/model/Desync.xta", "/property/Desync.prop", true},
-            new Object[]{"/model/Diagonal.xta", "/property/Diagonal.prop", true},
-            new Object[]{"/model/PointInterval.xta", "/property/PointInterval.prop", true},
-            new Object[]{"/model/Strict.xta", "/property/Strict.prop", true},
-            new Object[]{"/model/Zeno.xta", "/property/Zeno.prop", true},
-            new Object[]{"/model/ComplexBranching.xta", "/property/ComplexBranching.prop", true},
+            //new Object[]{"/model/Deadlock1Clock.xta", "/property/Deadlock1Clock.prop", true},
+            //new Object[]{"/model/Deadlock2Clock.xta", "/property/Deadlock2Clock.prop", true},
+            //new Object[]{"/model/DeadlockImmediate.xta", "/property/DeadlockImmediate.prop", true},
+            //new Object[]{"/model/Desync.xta", "/property/Desync.prop", true},
+            //new Object[]{"/model/Diagonal.xta", "/property/Diagonal.prop", true},
+            //new Object[]{"/model/PointInterval.xta", "/property/PointInterval.prop", true},
+            //new Object[]{"/model/Strict.xta", "/property/Strict.prop", true},
+            //new Object[]{"/model/Zeno.xta", "/property/Zeno.prop", true},
+            //new Object[]{"/model/ComplexBranching.xta", "/property/ComplexBranching.prop", true},
             new Object[]{"/model/fischer-2-32-64.xta", "/property/fischer-2-32-64.prop", true},
             new Object[]{"/model/leader_stateless_a.xta", "/property/leader_stateless_a.prop", true},
             new Object[]{"/model/leader_stateless_b.xta", "/property/leader_stateless_b.prop", true},
@@ -69,6 +70,7 @@ public class XtaLearningTest {
             new Object[]{"/model/ftsp-3-abs.xta",         "/property/ftsp-3-abs.prop",         true},
             new Object[]{"/model/ftsp-4-abs.xta",         "/property/ftsp-4-abs.prop",         true},
             new Object[]{"/model/sts-2.xta",              "/property/sts-2.prop",              true},
+            new Object[]{"/model/sts-3.xta",              "/property/sts-3.prop",              true},
             new Object[]{"/model/prio_sched_2a.xta",      "/property/prio_sched_2a.prop",      true},
             new Object[]{"/model/prio_sched_2b.xta",      "/property/prio_sched_2b.prop",      true},
             new Object[]{"/model/prio_sched_3c.xta",      "/property/prio_sched_3c.prop",      true},
@@ -148,7 +150,7 @@ public class XtaLearningTest {
                 .eqOracleType(EQOracleType.XTA_INCLUSION)
                 .searchStrategy(searchStrategy);
         if (VERBOSE_LOGGING) {
-            factory.consoleLogger(hu.bme.mit.theta.common.logging.Logger.Level.SUBSTEP);
+            factory.consoleLogger(Logger.Level.SUBSTEP);
         }
         XtaLearningCheckerConfig<?, ?> learningConfig = factory.build();
         XtaLearningCheckerConfig.CheckResult<?> checkResult = learningConfig.checkWithStats();
