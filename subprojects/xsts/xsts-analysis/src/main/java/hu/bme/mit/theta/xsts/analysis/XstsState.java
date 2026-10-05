@@ -5,6 +5,8 @@ import hu.bme.mit.theta.common.Utils;
 import hu.bme.mit.theta.core.type.Expr;
 import hu.bme.mit.theta.core.type.booltype.BoolType;
 
+import java.util.Objects;
+
 public final class XstsState<S extends ExprState> implements ExprState {
 
 	private final S state;
@@ -46,5 +48,28 @@ public final class XstsState<S extends ExprState> implements ExprState {
 	@Override
 	public String toString() {
 		return Utils.lispStringBuilder(getClass().getSimpleName()).aligned().add(initialized ? "post_init" : "pre_init").add(lastActionWasEnv ? "last_env" : "last_internal").body().add(state).toString();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		XstsState<?> that = (XstsState<?>) o;
+		if (initialized != that.initialized) {
+			return false;
+		}
+		if (lastActionWasEnv != that.lastActionWasEnv) {
+			return false;
+		}
+		return state != null ? state.equals(that.state) : that.state == null;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(state, initialized, lastActionWasEnv);
 	}
 }

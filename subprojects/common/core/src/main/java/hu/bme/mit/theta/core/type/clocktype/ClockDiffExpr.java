@@ -44,6 +44,18 @@ public final class ClockDiffExpr extends BinaryExpr<ClockType, ClockType> {
     }
 
     @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        } else if (obj instanceof ClockDiffExpr) {
+            final ClockDiffExpr that = (ClockDiffExpr) obj;
+            return this.getLeftOp().equals(that.getLeftOp()) && this.getRightOp().equals(that.getRightOp());
+        } else {
+            return false;
+        }
+    }
+
+    @Override
     protected int getHashSeed() {
         return HASH_SEED;
     }

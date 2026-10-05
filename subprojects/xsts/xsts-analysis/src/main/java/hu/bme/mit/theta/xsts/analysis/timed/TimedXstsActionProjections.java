@@ -49,29 +49,29 @@ public class TimedXstsActionProjections {
 
     private void createProjections(final XstsAction action) {
         final List<Stmt> dataStmts = new ArrayList<>();
-        final List<Stmt> clockStmts = new ArrayList<>();
-        final Tuple2<List<Stmt>, List<Stmt>> projections = Tuple2.of(dataStmts, clockStmts);
-        
+        final Set<Stmt> clockStmts = new LinkedHashSet<>();
+        final Tuple2<List<Stmt>, Set<Stmt>> projections = Tuple2.of(dataStmts, clockStmts);
+
         for (final Stmt stmt : action.getStmts()) {
             stmt.accept(new ProjectionVisitor(), projections);
         }
-        
+
         final XstsAction dataAction = XstsAction.create(projections.get1());
         dataProjections.put(action, dataAction);
-        
-        final XstsAction clockAction = XstsAction.create(projections.get2());
+
+        final XstsAction clockAction = XstsAction.create(new ArrayList<>(projections.get2()));
         clockProjections.put(action, clockAction);
     }
 
-    private static class ProjectionVisitor implements StmtVisitor<Tuple2<List<Stmt>, List<Stmt>>, Void> {
+    private static class ProjectionVisitor implements StmtVisitor<Tuple2<List<Stmt>, Set<Stmt>>, Void> {
 
         @Override
-        public Void visit(SkipStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(SkipStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             return null;
         }
 
         @Override
-        public Void visit(AssumeStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(AssumeStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             for (final Expr<BoolType> cond : ExprUtils.getConjuncts(stmt.getCond())) {
                 final Collection<VarDecl<?>> vars = ExprUtils.getVars(cond);
                 final long varsCnt = vars.size();
@@ -88,27 +88,27 @@ public class TimedXstsActionProjections {
         }
 
         @Override
-        public <DeclType extends Type> Void visit(AssignStmt<DeclType> stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public <DeclType extends Type> Void visit(AssignStmt<DeclType> stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             shouldNotContainClock(stmt);
             addDataStmt(stmt, projections);
             return null;
         }
 
         @Override
-        public <DeclType extends Type> Void visit(HavocStmt<DeclType> stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public <DeclType extends Type> Void visit(HavocStmt<DeclType> stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             shouldNotContainClock(stmt);
             addDataStmt(stmt, projections);
             return null;
         }
 
         @Override
-        public Void visit(SequenceStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(SequenceStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             stmt.getStmts().forEach(subStmt -> subStmt.accept(this, projections));
             return null;
         }
 
         @Override
-        public Void visit(NonDetStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(NonDetStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             if (stmt.getStmts().size() > 1) {
                 shouldNotContainClock(stmt);
             }
@@ -117,43 +117,43 @@ public class TimedXstsActionProjections {
         }
 
         @Override
-        public Void visit(OrtStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(OrtStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             shouldNotContainClock(stmt);
             addDataStmt(stmt, projections);
             return null;
         }
 
         @Override
-        public Void visit(LoopStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(LoopStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             shouldNotContainClock(stmt);
             addDataStmt(stmt, projections);
             return null;
         }
 
         @Override
-        public Void visit(IfStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(IfStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             shouldNotContainClock(stmt);
             addDataStmt(stmt, projections);
             return null;
         }
 
         @Override
-        public Void visit(DelayStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(DelayStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             addClockStmt(stmt, projections);
             return null;
         }
 
         @Override
-        public Void visit(ResetStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
+        public Void visit(ResetStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
             addClockStmt(stmt, projections);
             return null;
         }
         
-        private void addDataStmt(final Stmt dataStmt, final Tuple2<List<Stmt>, List<Stmt>> projections) {
+        private void addDataStmt(final Stmt dataStmt, final Tuple2<List<Stmt>, Set<Stmt>> projections) {
             projections.get1().add(dataStmt);
         }
         
-        private void addClockStmt(final Stmt clockStmt, final Tuple2<List<Stmt>, List<Stmt>> projections) {
+        private void addClockStmt(final Stmt clockStmt, final Tuple2<List<Stmt>, Set<Stmt>> projections) {
             projections.get2().add(clockStmt);
         }
 

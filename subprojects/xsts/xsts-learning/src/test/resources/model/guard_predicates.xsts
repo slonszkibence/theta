@@ -1,0 +1,26 @@
+var p : integer = 0
+var q : integer = 0
+var r : integer = 0
+var c : boolean
+var x : clock
+
+trans {
+    if (q < 5) {
+        q := q + 1;
+    } else {
+        q := q - 1;
+    }
+} or {
+    assume c;
+    assume x < 3;
+}
+
+init {
+    assume p >= 0;
+}
+
+env {
+    if (r < 10 || x > 1) {
+        r := r + 1;
+    }
+}

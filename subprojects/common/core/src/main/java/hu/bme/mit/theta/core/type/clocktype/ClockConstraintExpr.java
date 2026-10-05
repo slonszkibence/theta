@@ -11,8 +11,6 @@ import static hu.bme.mit.theta.core.type.booltype.BoolExprs.Bool;
 
 public abstract class ClockConstraintExpr extends AsymBinaryExpr<ClockType, IntType, BoolType> {
 
-    private static final int HASH_SEED = 81673;
-
     public enum ClockConstraintRel {
         LT, LEQ, GT, GEQ, EQ
     }
@@ -32,12 +30,6 @@ public abstract class ClockConstraintExpr extends AsymBinaryExpr<ClockType, IntT
     public AsymBinaryExpr<ClockType, IntType, BoolType> withRightOp(Expr<IntType> value) {
         return with(getLeftOp(), value);
     }
-
-    @Override
-    protected int getHashSeed() {
-        return HASH_SEED;
-    }
-
 
     @Override
     public BoolType getType() {

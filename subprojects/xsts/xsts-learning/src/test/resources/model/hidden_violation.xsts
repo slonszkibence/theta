@@ -1,0 +1,47 @@
+ctrl var a : integer = 0
+var b : integer = 0
+var x : clock
+var y : clock
+
+trans {
+    assume a == 0;
+    x := 0;
+    a := 1;
+    __delay;
+} or {
+    assume a == 1;
+    y := 0;
+    a := 2;
+    __delay;
+} or {
+    assume a == 2;
+    assume x < 1 && y >= 1;
+    b := 1;
+    a := 9;
+    __delay;
+} or {
+    assume a == 2;
+    a := 3;
+    __delay;
+} or {
+    assume a == 3;
+    assume y >= 2;
+    x := 0;
+    a := 4;
+    __delay;
+} or {
+    assume a == 4;
+    assume x >= 3;
+    b := 1;
+    a := 9;
+    __delay;
+} or {
+    assume a == 9;
+    __delay;
+}
+
+init {}
+
+env {
+    __delay;
+}

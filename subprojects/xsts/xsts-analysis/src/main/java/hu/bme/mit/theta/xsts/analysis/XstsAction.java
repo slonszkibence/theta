@@ -7,9 +7,14 @@ import hu.bme.mit.theta.core.stmt.Stmt;
 
 import java.util.List;
 
+
 public final class XstsAction extends StmtAction {
 
+	private static final int HASH_SEED = 8867;
+
 	private final List<Stmt> stmts;
+
+	private volatile int hashCode = 0;
 
 	private XstsAction(final List<Stmt> stmts) {
 		this.stmts = stmts;
@@ -43,5 +48,16 @@ public final class XstsAction extends StmtAction {
 	@Override
 	public String toString() {
 		return Utils.lispStringBuilder(getClass().getSimpleName()).body().addAll(stmts).toString();
+	}
+
+	@Override
+	public int hashCode() {
+		int result = hashCode;
+		if (result == 0) {
+			result = HASH_SEED;
+			result = 31 * result + stmts.hashCode();
+			hashCode = result;
+		}
+		return result;
 	}
 }

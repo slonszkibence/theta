@@ -1,5 +1,6 @@
 package hu.bme.mit.theta.xsts.learning.membership;
 
+import hu.bme.mit.theta.xsts.learning.common.LearningCancellation;
 import de.learnlib.sul.SUL;
 
 import hu.bme.mit.theta.analysis.zone.ZoneInitFunc;
@@ -35,6 +36,7 @@ public class TimedXstsSul implements SUL<XstsAction, Boolean> {
 
     @Override
     public Boolean step(XstsAction action) {
+        LearningCancellation.check("membership query");
         if (currentZone.isBottom()) {
             return false;
         }
@@ -51,6 +53,6 @@ public class TimedXstsSul implements SUL<XstsAction, Boolean> {
 
     @Override
     public void post() {
-        currentZone = ZoneState.bottom();
+        currentZone = null;
     }
 }

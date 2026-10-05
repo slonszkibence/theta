@@ -87,10 +87,13 @@ public final class BasicAbstractor<S extends State, A extends Action, P extends 
 		long startNodes = arg.getNodes().count();
 		long startIncompleteNodes = arg.getIncompleteNodes().count();
 
-		ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<S, A, P>(arg, prec));
+		if (ArgCexCheckHandler.instance.isEnabled()) {
+		    ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<S, A, P>(arg, prec));
+		}
 		logger.write(Level.INFO, "|  |  Starting ARG: %d nodes, %d incomplete, %d unsafe%n", arg.getNodes().count(),
 				arg.getIncompleteNodes().count(), arg.getUnsafeNodes().count());
 		logger.write(Level.SUBSTEP, "|  |  Building ARG...");
+		logger.write(Level.DETAIL, "%n");
 
 		final Partition<ArgNode<S, A>, ?> reachedSet = Partition.of(n -> projection.apply(n.getState()));
 		waitlist.clear();
@@ -98,19 +101,31 @@ public final class BasicAbstractor<S extends State, A extends Action, P extends 
 		reachedSet.addAll(arg.getNodes());
 		waitlist.addAll(arg.getIncompleteNodes());
 
+		int nodeCount = 0;
 		if (!stopCriterion.canStop(arg)) {
 			while (!waitlist.isEmpty()) {
 				final ArgNode<S, A> node = waitlist.remove();
+				nodeCount++;
 
 				Collection<ArgNode<S, A>> newNodes = Collections.emptyList();
 				close(node, reachedSet.get(node));
-				if (!node.isSubsumed() && !node.isTarget()) {
+				if (node.isSubsumed()) {
+					logger.write(Level.DETAIL, "|  |  |  node #%d: covered%n", nodeCount);
+				} else if (node.isTarget()) {
+					logger.write(Level.DETAIL, "|  |  |  node #%d: target%n", nodeCount);
+				} else {
 					newNodes = argBuilder.expand(node, prec);
 					reachedSet.addAll(newNodes);
 					waitlist.addAll(newNodes);
+					logger.write(Level.DETAIL, "|  |  |  node #%d: expanded, %d successor(s)%n",
+							nodeCount, newNodes.size());
 				}
+				logger.write(Level.VERBOSE, "|  |  |     %s%n", node.getState());
 
-				ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<S, A, P>(arg, prec));
+
+				if (ArgCexCheckHandler.instance.isEnabled()) {
+				    ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<S, A, P>(arg, prec));
+				}
 				if (stopCriterion.canStop(arg, newNodes)) break;
 			}
 		}

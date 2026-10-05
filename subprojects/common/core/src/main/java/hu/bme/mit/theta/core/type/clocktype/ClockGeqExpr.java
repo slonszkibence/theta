@@ -5,6 +5,7 @@ import hu.bme.mit.theta.core.type.inttype.IntType;
 
 public final class ClockGeqExpr extends ClockConstraintExpr {
 
+    private static final int HASH_SEED = 7229;
     private static final ClockConstraintRel REL = ClockConstraintRel.GEQ;
     private static final String OPERATOR_LABEL = ">=";
 
@@ -28,6 +29,23 @@ public final class ClockGeqExpr extends ClockConstraintExpr {
     @Override
     public ClockConstraintRel getRel() {
         return REL;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        } else if (obj instanceof ClockGeqExpr) {
+            final ClockGeqExpr that = (ClockGeqExpr) obj;
+            return this.getLeftOp().equals(that.getLeftOp()) && this.getRightOp().equals(that.getRightOp());
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    protected int getHashSeed() {
+        return HASH_SEED;
     }
 
     @Override

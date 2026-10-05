@@ -61,7 +61,9 @@ public final class LazyAbstractor<SConcr extends State, SAbstr extends State, FS
             Stream<ArgNode<LazyState<FSConcr, FSAbstr>, A>> incompleteNodes = arg.getIncompleteNodes();
             waiting.addAll(incompleteNodes);
         }
-        ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<>(arg, prec));
+        if (ArgCexCheckHandler.instance.isEnabled()) {
+            ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<>(arg, prec));
+        }
         return new CheckMethod(arg, waiting, prec).run();
     }
 
@@ -100,7 +102,9 @@ public final class LazyAbstractor<SConcr extends State, SAbstr extends State, FS
                         return stop(AbstractorResult.unsafe());
                     }
                 }
-                ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<>(arg, prec));
+                if (ArgCexCheckHandler.instance.isEnabled()) {
+                    ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<>(arg, prec));
+                }
             }
             return stop(AbstractorResult.safe());
         }
