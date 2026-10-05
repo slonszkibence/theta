@@ -1,6 +1,5 @@
 package hu.bme.mit.theta.xsts.learning.inclusion;
 
-import hu.bme.mit.theta.xsts.learning.common.LearningCancellation;
 import de.learnlib.oracle.EquivalenceOracle;
 import de.learnlib.oracle.MembershipOracle;
 import de.learnlib.query.DefaultQuery;
@@ -103,7 +102,6 @@ public class TimedXstsInclusionOracle<I> implements EquivalenceOracle.DFAEquival
                 hypothesis.size(), inputs.size());
 
         while (!waitlist.isEmpty()) {
-            LearningCancellation.check("inclusion oracle ARG expansion");
             ArgNode<ZoneDfaState<S>, LearnLibAction<I>> node = waitlist.remove();
             S currentDfaState = node.getState().getDfaState();
             nodeCount++;

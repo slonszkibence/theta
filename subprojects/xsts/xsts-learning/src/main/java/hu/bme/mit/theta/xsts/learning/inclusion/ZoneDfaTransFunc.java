@@ -38,14 +38,6 @@ public class ZoneDfaTransFunc<S, I> implements TransFunc<ZoneDfaState<S>, LearnL
         return new ZoneDfaTransFunc<>(hypothesis, ceilings, mapper, new java.util.HashMap<>());
     }
 
-    public static<S, I> ZoneDfaTransFunc<S, I> create
-    (DFA<S, I> hypothesis, Map<VarDecl<ClockType>, Integer> ceilings, XstsTimingMapper<I, ?, ?> mapper,
-     Map<?, ?> sharedZoneCache) {
-        @SuppressWarnings("unchecked")
-        final Map<ZoneStep<I>, ZoneState> cache = (Map<ZoneStep<I>, ZoneState>) sharedZoneCache;
-        return new ZoneDfaTransFunc<>(hypothesis, ceilings, mapper, cache);
-    }
-
 
     @Override
     public Collection<ZoneDfaState<S>> getSuccStates(ZoneDfaState<S> state, LearnLibAction<I> action, ZonePrec prec) {

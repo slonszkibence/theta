@@ -44,24 +44,6 @@ public class XstsCompositionTransFunc <S extends ExprState, prodS, P extends Pre
             TransFunc<XstsState<S>, XstsAction, P> transFunc,
             DFA<prodS, XstsAction> productDfa,
             Alphabet<XstsAction> alphabet,
-            TimedXstsActionProjections projections) {
-        return create(transFunc, productDfa, alphabet, projections,
-                XstsCompositionLts.UnknownSymbolHandler.FAIL);
-    }
-
-    public static <S extends ExprState, prodS, P extends Prec> XstsCompositionTransFunc<S, prodS, P> create(
-            TransFunc<XstsState<S>, XstsAction, P> transFunc,
-            DFA<prodS, XstsAction> productDfa,
-            Alphabet<XstsAction> alphabet,
-            TimedXstsActionProjections projections,
-            XstsCompositionLts.UnknownSymbolHandler unknownSymbolHandler) {
-        return create(transFunc, productDfa, alphabet, projections, unknownSymbolHandler, null);
-    }
-
-    public static <S extends ExprState, prodS, P extends Prec> XstsCompositionTransFunc<S, prodS, P> create(
-            TransFunc<XstsState<S>, XstsAction, P> transFunc,
-            DFA<prodS, XstsAction> productDfa,
-            Alphabet<XstsAction> alphabet,
             TimedXstsActionProjections projections,
             XstsCompositionLts.UnknownSymbolHandler unknownSymbolHandler,
             prodS topState) {

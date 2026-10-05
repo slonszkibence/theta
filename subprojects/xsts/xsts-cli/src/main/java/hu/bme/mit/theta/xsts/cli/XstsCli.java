@@ -55,15 +55,7 @@ public class XstsCli {
 	private final TableWriter writer;
 
 	enum AlgorithmType {
-		/**
-		 * CEGAR pipeline
-		 * Lazy abstraction when the model has clocks
-		 */
 		CEGAR,
-		/**
-		 * Compositional verification with automata learning.
-		 * TXSTS split into an XSTS and a clock alphabet, and a DFA over that alphabet is learned
-		 */
 		LEARNING
 	}
 

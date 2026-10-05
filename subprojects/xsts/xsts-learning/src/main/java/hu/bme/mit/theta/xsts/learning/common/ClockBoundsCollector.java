@@ -65,7 +65,6 @@ public final class ClockBoundsCollector {
         try {
             builder.add(constr);
         } catch (final UnsupportedOperationException e) {
-            // diagonal constraints are not supported by BoundFunc either - skip
         }
     }
 }

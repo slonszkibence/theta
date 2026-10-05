@@ -1,7 +1,5 @@
 package hu.bme.mit.theta.xsts.learning;
 
-import hu.bme.mit.theta.analysis.zone.ZoneState;
-import hu.bme.mit.theta.analysis.zone.ZoneStmtTransFunc;
 import hu.bme.mit.theta.core.clock.constr.ClockConstrs;
 import hu.bme.mit.theta.core.clock.constr.DiffConstr;
 import hu.bme.mit.theta.core.stmt.AssumeStmt;
@@ -13,7 +11,6 @@ import hu.bme.mit.theta.core.utils.ExprUtils;
 import hu.bme.mit.theta.xsts.learning.common.HypothesisGraph;
 import hu.bme.mit.theta.xsts.learning.common.ClockBoundsCollector;
 import hu.bme.mit.theta.xsts.learning.common.DataProjectedAnalysis;
-import hu.bme.mit.theta.xsts.learning.common.LearningCancellation;
 import hu.bme.mit.theta.xsts.learning.common.XstsTimingMapper;
 import hu.bme.mit.theta.xsts.learning.inclusion.TimedXstsInclusionOracle;
 import hu.bme.mit.theta.xsts.learning.learnalgo.LearningAlgorithmFactory;
@@ -108,7 +105,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
     private final int maxOuterIterations;
     private final Logger logger;
 
-    /** The last finished run, kept so the artifacts can be written after the fact. */
     private CheckResult<S> lastResult;
 
     private XstsLearningCheckerConfig(
@@ -159,7 +155,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
                 maxLearningIterations, maxOuterIterations, logger);
     }
 
-    // ── Public API ──────────────────────────────────────────────────────────
     @Override
     public SafetyResult<XstsCompositionState<S, FastDFAState>, XstsAction> check(final P prec) {
         return checkWithStats(prec).safetyResult();
@@ -232,7 +227,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         int lastCompositionDfaStates = 0;
 
         for (int outer = 1; outer <= maxOuterIterations; outer++) {
-            LearningCancellation.check("outer iteration");
             logger.write(Logger.Level.MAINSTEP, "%n=== Outer iteration #%d ===%n", outer);
 
             final boolean unconstrainedRound = learner == null;
@@ -417,7 +411,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
 
     private record LearningPhaseResult(DFA<?, XstsAction> hypothesis, int refinements) {}
 
-    // ── Learning phase (inner loop: learn H until it agrees with the realizability-checked SUL) ──
 
     private LearningPhaseResult runLearningPhase(
             final CheckContext<S, P> ctx,
@@ -426,7 +419,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
             final Alphabet<XstsAction> alphabet) {
         final long phaseStart = System.currentTimeMillis();
         for (int i = 1; i <= maxLearningIterations; i++) {
-            LearningCancellation.check("learning iteration");
             final DFA<?, XstsAction> hypothesis = learner.getHypothesisModel();
             final int statesBefore = hypothesis.size();
             final long mqBefore = ctx.mqCount();
@@ -463,7 +455,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
                 "Learning did not converge within " + maxLearningIterations + " iterations");
     }
 
-    // ── Context: everything built once per check() run ─────────────────────
 
     private record CheckContext<S extends ExprState, P extends Prec>(
             XstsRealizabilityOracle realizabilityOracle,
@@ -537,21 +528,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
                 clocks, mqCounter, eqCounter);
     }
 
-    private static ZoneState anyValuation(final List<VarDecl<ClockType>> clocks) {
-        final ZoneState.Builder builder = ZoneState.zero(clocks).transform();
-        for (final VarDecl<ClockType> clock : clocks) {
-            builder.free(clock);
-        }
-        return builder.nonnegative().build();
-    }
 
-    private static boolean isLive(final XstsAction symbol, final ZoneState anyValuation,
-                                  final ZonePrec zonePrec,
-                                  final TimedXstsActionProjections projections) {
-        return !ZoneStmtTransFunc.getInstance()
-                .getSuccStates(anyValuation, projections.clockProjection(symbol), zonePrec)
-                .iterator().next().isBottom();
-    }
 
     private static void checkNoDiagonalConstraints(final Collection<XstsAction> alphabet) {
         for (final XstsAction symbol : alphabet) {
@@ -577,7 +554,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         return (VarDecl<ClockType>) var;
     }
 
-    // ── Checker builder (A||H CEGAR phase) ──────────────────────────────────
 
     private SafetyChecker<XstsCompositionState<S, FastDFAState>, XstsAction, P> buildChecker(
             final CheckContext<S, P> ctx, final FastDFA<XstsAction> compositionDfa,
@@ -603,7 +579,6 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
                 modelCheckingStrategy, searchStrategy, analysis, lts, targetPred, logger);
     }
 
-    // ── Counterexample extraction ───────────────────────────────────────────
 
     private void logWord(final String prefix, final Word<XstsAction> word) {
         if (word.isEmpty()) {

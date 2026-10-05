@@ -1,10 +1,8 @@
 package hu.bme.mit.theta.xsts.learning.modelchecking;
 
-import hu.bme.mit.theta.xsts.learning.common.LearningCancellation;
 import hu.bme.mit.theta.analysis.LTS;
 import hu.bme.mit.theta.analysis.expr.ExprState;
 import hu.bme.mit.theta.common.logging.Logger;
-import hu.bme.mit.theta.common.logging.NullLogger;
 import hu.bme.mit.theta.xsts.analysis.XstsAction;
 import hu.bme.mit.theta.xsts.analysis.timed.ControlFlowSplitXstsLts;
 import hu.bme.mit.theta.xsts.analysis.timed.TimedXstsActionProjections;
@@ -23,12 +21,6 @@ public class XstsCompositionLts<S extends ExprState, prodS> implements LTS<XstsC
     @FunctionalInterface
     public interface UnknownSymbolHandler {
 
-        UnknownSymbolHandler FAIL = symbol -> {
-            throw new IllegalStateException(
-                    "Clock projection outside the learning alphabet: " + symbol
-                            + ". With a fixed alphabet TimelessXsts must over-approximate every"
-                            + " clock label the composition can produce (see AlphabetCoverageTest).");
-        };
 
         void onUnknownSymbol(XstsAction clockAction);
     }
@@ -61,24 +53,6 @@ public class XstsCompositionLts<S extends ExprState, prodS> implements LTS<XstsC
             DFA<prodS, XstsAction> dfa,
             Alphabet<XstsAction> alphabet,
             ControlFlowSplitXstsLts<S> innerLts,
-            TimedXstsActionProjections projections) {
-        return create(dfa, alphabet, innerLts, projections, UnknownSymbolHandler.FAIL);
-    }
-
-    public static <S extends ExprState, prodS> XstsCompositionLts<S, prodS> create(
-            DFA<prodS, XstsAction> dfa,
-            Alphabet<XstsAction> alphabet,
-            ControlFlowSplitXstsLts<S> innerLts,
-            TimedXstsActionProjections projections,
-            UnknownSymbolHandler unknownSymbolHandler) {
-        return create(dfa, alphabet, innerLts, projections, unknownSymbolHandler, null,
-                NullLogger.getInstance());
-    }
-
-    public static <S extends ExprState, prodS> XstsCompositionLts<S, prodS> create(
-            DFA<prodS, XstsAction> dfa,
-            Alphabet<XstsAction> alphabet,
-            ControlFlowSplitXstsLts<S> innerLts,
             TimedXstsActionProjections projections,
             UnknownSymbolHandler unknownSymbolHandler,
             prodS topState,
@@ -89,7 +63,6 @@ public class XstsCompositionLts<S extends ExprState, prodS> implements LTS<XstsC
 
     @Override
     public Collection<XstsAction> getEnabledActionsFor(XstsCompositionState<S, prodS> state) {
-        LearningCancellation.check("composition ARG expansion");
         if (state.isBottom()) {
             return List.of();
         }

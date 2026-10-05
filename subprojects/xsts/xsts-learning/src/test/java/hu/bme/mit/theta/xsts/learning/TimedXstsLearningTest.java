@@ -42,20 +42,15 @@ public class TimedXstsLearningTest {
 
     private static final List<LearningAlgorithmType> LEARNERS = List.of(
             LearningAlgorithmType.TTT
-            //LearningAlgorithmType.KV,
-            //LearningAlgorithmType.LSTAR
     );
     private static final List<SearchStrategy> SEARCHES = List.of(
             SearchStrategy.BFS
-            //SearchStrategy.DFS,
-            //SearchStrategy.RANDOM
     );
 
     private static final List<Object[]> MODELS = buildModels();
 
     private static List<Object[]> buildModels() {
         final List<Object[]> models = new ArrayList<>();
-        //addFamily(models, "crossroad", 17, "safety");
         addFamily(models, "antival", 10, "safety", "trans");
         return List.copyOf(models);
     }
@@ -201,8 +196,6 @@ public class TimedXstsLearningTest {
             } catch (final TimeoutException timeout) {
                 future.cancel(true);
                 executor.shutdownNow();
-                // Report only once the thread is really gone, so the next model is not measured
-                // against a core still working on this one.
                 final boolean stopped =
                         executor.awaitTermination(CANCEL_GRACE_SECONDS, TimeUnit.SECONDS);
                 System.out.println(row(

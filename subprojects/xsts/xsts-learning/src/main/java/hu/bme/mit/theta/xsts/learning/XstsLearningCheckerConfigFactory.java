@@ -49,7 +49,6 @@ import hu.bme.mit.theta.xsts.XSTS;
 import hu.bme.mit.theta.xsts.analysis.XstsAction;
 import hu.bme.mit.theta.xsts.analysis.config.XstsConfigBuilder;
 import hu.bme.mit.theta.xsts.analysis.timed.TimedXstsActionProjections;
-import hu.bme.mit.theta.xsts.learning.common.XstsGuardPredicateCollector;
 import hu.bme.mit.theta.xsts.learning.learnalgo.LearningAlgorithmType;
 import hu.bme.mit.theta.xsts.learning.modelchecking.ModelCheckingStrategy;
 import hu.bme.mit.theta.xsts.learning.modelchecking.TraceCheckerStrategy;
@@ -309,7 +308,6 @@ public class XstsLearningCheckerConfigFactory {
         final ItpSolver itpSolver = solverFactory.createItpSolver();
         final Expr<BoolType> initFormula = xsts.getInitFormula();
         final Expr<BoolType> negProp = Not(xsts.getProp());
-        // Stateful across refinements, so it must be created once and shared by every call.
         final AutoExpl autoExplInstance = autoExpl.builder.create(xsts);
 
         return switch (refinement) {
