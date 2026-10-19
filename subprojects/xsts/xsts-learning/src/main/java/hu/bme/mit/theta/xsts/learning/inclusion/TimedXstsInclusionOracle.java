@@ -13,6 +13,7 @@ import hu.bme.mit.theta.analysis.algorithm.SearchStrategy;
 import hu.bme.mit.theta.analysis.waitlist.Waitlist;
 import hu.bme.mit.theta.analysis.zone.BoundFunc;
 import hu.bme.mit.theta.analysis.zone.ZonePrec;
+import hu.bme.mit.theta.analysis.zone.ZoneState;
 import hu.bme.mit.theta.common.logging.Logger;
 import hu.bme.mit.theta.core.decl.VarDecl;
 import hu.bme.mit.theta.core.type.clocktype.ClockType;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.Predicate;
@@ -40,6 +42,17 @@ public class TimedXstsInclusionOracle<I> implements EquivalenceOracle.DFAEquival
     private final MembershipOracle.DFAMembershipOracle<I> membershipOracle;
     private final SearchStrategy searchStrategy;
     private final Logger logger;
+
+    private static final int MAX_CACHE = 500_000;
+
+    private final Map<ZoneDfaTransFunc.ZoneStep<I>, ZoneState> sharedZoneCache =
+            new LinkedHashMap<>(1024, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(
+                        final Map.Entry<ZoneDfaTransFunc.ZoneStep<I>, ZoneState> eldest) {
+                    return size() > MAX_CACHE;
+                }
+            };
 
     private TimedXstsInclusionOracle (
             Map<VarDecl<ClockType>, Integer> ceilings,
@@ -75,7 +88,7 @@ public class TimedXstsInclusionOracle<I> implements EquivalenceOracle.DFAEquival
 
     private <S> DefaultQuery<I, Boolean> doFindCounterExample(DFA<S, I> hypothesis, Collection<? extends I> inputs) {
         ZoneDfaInitFunc<S, I> initFunc = ZoneDfaInitFunc.create(hypothesis);
-        ZoneDfaTransFunc<S, I> transFunc = ZoneDfaTransFunc.create(hypothesis, ceilings, mapper);
+        ZoneDfaTransFunc<S, I> transFunc = ZoneDfaTransFunc.create(hypothesis, ceilings, mapper, sharedZoneCache);
         ZoneDfaOrd<S> ord = ZoneDfaOrd.create(luBounds);
         ZoneDfaLts<S, I> lts = ZoneDfaLts.create(hypothesis, inputs);
 
@@ -113,6 +126,10 @@ public class TimedXstsInclusionOracle<I> implements EquivalenceOracle.DFAEquival
                         System.currentTimeMillis() - startTime);
             }
 
+
+            final Map<I, Collection<? extends ZoneDfaState<S>>> succBySymbol =
+                    new LinkedHashMap<>();
+            final Map<I, LearnLibAction<I>> actionBySymbol = new LinkedHashMap<>();
             for (I symbol : inputs) {
                 S nextDfaState = hypothesis.getTransition(currentDfaState, symbol);
                 if (nextDfaState == null || !hypothesis.isAccepting(nextDfaState)) {
@@ -120,8 +137,10 @@ public class TimedXstsInclusionOracle<I> implements EquivalenceOracle.DFAEquival
                 }
 
                 LearnLibAction<I> action = LearnLibAction.create(symbol);
+                actionBySymbol.put(symbol, action);
                 Collection<? extends ZoneDfaState<S>> succStates =
                         transFunc.getSuccStates(node.getState(), action, prec);
+                succBySymbol.put(symbol, succStates);
 
                 if (succStates.isEmpty() || succStates.stream().allMatch(ZoneDfaState::isBottom)) {
                     Word<I> candidate = extractWord(node).append(symbol);
@@ -173,7 +192,30 @@ public class TimedXstsInclusionOracle<I> implements EquivalenceOracle.DFAEquival
 
             expandedCount++;
             logger.write(Logger.Level.VERBOSE, "      [ARG] node #%d: expanded%n", nodeCount);
-            argBuilder.expand(node, prec);
+            for (I symbol : inputs) {
+                if (hypothesis.getTransition(currentDfaState, symbol) == null) {
+                    continue;
+                }
+                LearnLibAction<I> cached = actionBySymbol.get(symbol);
+                Collection<? extends ZoneDfaState<S>> succStates;
+                if (cached == null) {
+                    // nem elfogado celallapot: a pasztazas kihagyta, most kell kiszamolni
+                    cached = LearnLibAction.create(symbol);
+                    succStates = transFunc.getSuccStates(node.getState(), cached, prec);
+                } else {
+                    succStates = succBySymbol.get(symbol);
+                }
+                final LearnLibAction<I> action = cached;
+                for (final ZoneDfaState<S> succState : succStates) {
+                    final boolean covered = node.getSuccNodes().anyMatch(n ->
+                            n.getInEdge().get().getAction().equals(action)
+                                    && ord.isLeq(succState, n.getState()));
+                    if (!covered) {
+                        arg.createSuccNode(node, action, succState, targetPred.test(succState));
+                    }
+                }
+            }
+            node.expanded = true;
             waitlist.addAll(node.getSuccNodes());
         }
 

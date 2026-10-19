@@ -23,7 +23,7 @@ public class ZoneDfaTransFunc<S, I> implements TransFunc<ZoneDfaState<S>, LearnL
     private final XstsTimingMapper<I, ?, ?> mapper;
     private final Map<ZoneStep<I>, ZoneState> zoneCache;
 
-    private record ZoneStep<I>(ZoneState zone, I symbol) {}
+    public record ZoneStep<I>(ZoneState zone, I symbol) {}
 
     private ZoneDfaTransFunc(DFA<S, I> hypothesis, Map<VarDecl<ClockType>, Integer> ceilings,
                              XstsTimingMapper<I, ?, ?> mapper, Map<ZoneStep<I>, ZoneState> zoneCache) {
@@ -36,6 +36,12 @@ public class ZoneDfaTransFunc<S, I> implements TransFunc<ZoneDfaState<S>, LearnL
     public static<S, I> ZoneDfaTransFunc<S, I> create
     (DFA<S, I> hypothesis, Map<VarDecl<ClockType>, Integer> ceilings, XstsTimingMapper<I, ?, ?> mapper) {
         return new ZoneDfaTransFunc<>(hypothesis, ceilings, mapper, new java.util.HashMap<>());
+    }
+
+    public static<S, I> ZoneDfaTransFunc<S, I> create
+    (DFA<S, I> hypothesis, Map<VarDecl<ClockType>, Integer> ceilings, XstsTimingMapper<I, ?, ?> mapper,
+     Map<ZoneStep<I>, ZoneState> zoneCache) {
+        return new ZoneDfaTransFunc<>(hypothesis, ceilings, mapper, zoneCache);
     }
 
 

@@ -68,7 +68,7 @@ public class XstsCompositionLts<S extends ExprState, prodS> implements LTS<XstsC
         }
 
         innerLts.reset();
-        innerLts.splitControlFlows(state.getXstsState(), false);
+        innerLts.splitControlFlows(state.getXstsState(), true);
         innerLts.updateSourceAbstractState(state.getXstsState());
 
         final Collection<XstsAction> validActions = new ArrayList<>();

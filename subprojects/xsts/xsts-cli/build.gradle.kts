@@ -16,5 +16,4 @@ dependencies {
 
 application {
     mainClassName = "hu.bme.mit.theta.xsts.cli.XstsCli"
-    applicationDefaultJvmArgs = listOf("-Xmx4g", "-Xms4g")
 }

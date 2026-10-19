@@ -14,11 +14,4 @@ dependencies {
 
     implementation("de.learnlib.distribution:learnlib-distribution:0.18.0")
     implementation("net.automatalib.distribution:automata-distribution:0.12.0")
-
-    tasks.test {
-        maxHeapSize = "4g"
-        extensions.configure<JacocoTaskExtension> {
-            isEnabled = false
-        }
-    }
 }
