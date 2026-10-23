@@ -298,8 +298,10 @@ final class XtaExpression {
             if (ctx.fOpers == null || ctx.fOpers.isEmpty()) {
                 return checkNotNull(visitChildren(ctx));
             } else {
-                final Expr<?> leftOp = ctx.fOps.get(0).accept(this);
-                final Expr<?> rightOp = ctx.fOps.get(1).accept(this);
+                final Expr<?> rawLeftOp = ctx.fOps.get(0).accept(this);
+                final Expr<?> rawRightOp = ctx.fOps.get(1).accept(this);
+                final Expr<?> leftOp = XtaType.coerceToType(rawRightOp.getType(), rawLeftOp);
+                final Expr<?> rightOp = XtaType.coerceToType(rawLeftOp.getType(), rawRightOp);
 
                 final EqualityOpContext op = Utils.singleElementOf(ctx.fOpers);
                 if (op.fEqOp != null) {

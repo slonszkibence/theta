@@ -7,62 +7,61 @@ import net.automatalib.automaton.fsa.DFA;
 import net.automatalib.word.Word;
 
 import hu.bme.mit.theta.analysis.Analysis;
+import hu.bme.mit.theta.analysis.InitFunc;
+import hu.bme.mit.theta.analysis.TransFunc;
 import hu.bme.mit.theta.analysis.algorithm.ARG;
 import hu.bme.mit.theta.analysis.algorithm.ArgBuilder;
 import hu.bme.mit.theta.analysis.algorithm.ArgEdge;
 import hu.bme.mit.theta.analysis.algorithm.ArgNode;
-import hu.bme.mit.theta.analysis.waitlist.FifoWaitlist;
+import hu.bme.mit.theta.analysis.algorithm.SearchStrategy;
 import hu.bme.mit.theta.analysis.waitlist.Waitlist;
-import hu.bme.mit.theta.analysis.zone.BoundFunc;
 import hu.bme.mit.theta.analysis.zone.ZonePrec;
+import hu.bme.mit.theta.analysis.zone.ZoneState;
 import hu.bme.mit.theta.common.logging.Logger;
 import hu.bme.mit.theta.common.logging.NullLogger;
-import hu.bme.mit.theta.core.decl.VarDecl;
-import hu.bme.mit.theta.core.type.rattype.RatType;
 import hu.bme.mit.theta.xta.learning.compositional.common.LearnLibAction;
-import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
-
+import hu.bme.mit.theta.xta.learning.compositional.common.TimedStepper;
+import hu.bme.mit.theta.xta.learning.compositional.common.ZoneSemantics;
 
 import java.util.*;
 import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-
 public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracle<String> {
     private static final int ARG_LOG_INTERVAL = 500;
 
-    private final Map<VarDecl<RatType>, Integer> ceilings;
-    private final XtaTimingMapper<Boolean, Boolean> mapper;
-    private final BoundFunc luBounds;
+    private final ZoneSemantics semantics;
+    private final TimedStepper stepper;
     private final MembershipOracle.DFAMembershipOracle<String> mqOracle;
+    private final SearchStrategy searchStrategy;
     private final Logger logger;
 
-    private XtaInclusionOracle(Map<VarDecl<RatType>, Integer> ceilings,
-                               XtaTimingMapper<Boolean, Boolean> mapper,
-                               BoundFunc luBounds,
+    private XtaInclusionOracle(ZoneSemantics semantics,
+                               TimedStepper stepper,
                                MembershipOracle.DFAMembershipOracle<String> mqOracle,
+                               SearchStrategy searchStrategy,
                                Logger logger) {
-        this.ceilings = checkNotNull(ceilings);
-        this.mapper = checkNotNull(mapper);
-        this.luBounds = checkNotNull(luBounds);
+        this.semantics = checkNotNull(semantics);
+        this.stepper = checkNotNull(stepper);
         this.mqOracle = checkNotNull(mqOracle);
+        this.searchStrategy = checkNotNull(searchStrategy);
         this.logger = checkNotNull(logger);
     }
 
-    public static XtaInclusionOracle create(Map<VarDecl<RatType>, Integer> ceilings,
-                                            XtaTimingMapper<Boolean, Boolean> mapper,
-                                            BoundFunc luBounds,
+    public static XtaInclusionOracle create(ZoneSemantics semantics,
+                                            TimedStepper stepper,
                                             MembershipOracle.DFAMembershipOracle<String> mqOracle) {
-        return new XtaInclusionOracle(ceilings, mapper, luBounds, mqOracle, NullLogger.getInstance());
+        return new XtaInclusionOracle(semantics, stepper, mqOracle, SearchStrategy.BFS,
+                NullLogger.getInstance());
     }
 
-    public static XtaInclusionOracle create(Map<VarDecl<RatType>, Integer> ceilings,
-                                            XtaTimingMapper<Boolean, Boolean> mapper,
-                                            BoundFunc luBounds,
+    public static XtaInclusionOracle create(ZoneSemantics semantics,
+                                            TimedStepper stepper,
                                             MembershipOracle.DFAMembershipOracle<String> mqOracle,
+                                            SearchStrategy searchStrategy,
                                             Logger logger) {
-        return new XtaInclusionOracle(ceilings, mapper, luBounds, mqOracle, logger);
+        return new XtaInclusionOracle(semantics, stepper, mqOracle, searchStrategy, logger);
     }
 
     @Override
@@ -70,30 +69,40 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
         return doFindCounterExample(hypothesis, inputs);
     }
 
-
     private <S> DefaultQuery<String, Boolean> doFindCounterExample(DFA<S, String> hypothesis, Collection<? extends String> inputs) {
-        ZoneDfaInitFunc<S, ZonePrec> initFunc = ZoneDfaInitFunc.create(hypothesis, ceilings);
-        ZoneDfaTransFunc<S, ZonePrec> transFunc =  ZoneDfaTransFunc.create(hypothesis, ceilings, mapper);
-        ZoneDfaOrd<S> ord = ZoneDfaOrd.create(luBounds);
+        InitFunc<ZoneDfaState<S>, ZonePrec> initFunc =
+                ZoneDfaInitFunc.create(hypothesis, stepper);
+        TransFunc<ZoneDfaState<S>, LearnLibAction<String>, ZonePrec> transFunc =
+                ZoneDfaTransFunc.create(hypothesis, stepper);
+        ZoneDfaOrd<S> ord = ZoneDfaOrd.create();
         ZoneDfaLts<S> lts = ZoneDfaLts.create(hypothesis, inputs);
 
         Analysis<ZoneDfaState<S>, LearnLibAction<String>, ZonePrec> analysis = ZoneDfaAnalysis.create(initFunc, transFunc, ord);
         Predicate<ZoneDfaState<S>> targetPred = state -> !hypothesis.isAccepting(state.getDfaState());
         ArgBuilder<ZoneDfaState<S>, LearnLibAction<String>, ZonePrec> argBuilder = ArgBuilder.create(lts, analysis, targetPred);
-        ZonePrec prec = ZonePrec.of(ceilings.keySet());
+        ZonePrec prec = ZonePrec.of(semantics.ceilings().keySet());
 
         ARG<ZoneDfaState<S>, LearnLibAction<String>> arg = argBuilder.createArg();
         argBuilder.init(arg, prec);
 
-        Waitlist<ArgNode<ZoneDfaState<S>, LearnLibAction<String>>> waitlist = FifoWaitlist.create();
+        Waitlist<ArgNode<ZoneDfaState<S>, LearnLibAction<String>>> waitlist =
+                searchStrategy.createWaitlist();
         waitlist.addAll(arg.getInitNodes());
 
-        Map<S, List<ArgNode<ZoneDfaState<S>, LearnLibAction<String>>>> passed = new HashMap<>();
+        final Map<ZoneDfaState<S>, ArgNode<ZoneDfaState<S>, LearnLibAction<String>>> passed =
+                new HashMap<>();
         long startTime = System.currentTimeMillis();
         int nodeCount = 0;
 
+        final List<String> symbols = List.copyOf(inputs);
+        final int symbolCount = symbols.size();
+        @SuppressWarnings("unchecked")
+        final Collection<? extends ZoneDfaState<S>>[] succBySymbol = new Collection[symbolCount];
+        @SuppressWarnings("unchecked")
+        final LearnLibAction<String>[] actionBySymbol = new LearnLibAction[symbolCount];
+
         logger.write(Logger.Level.SUBSTEP,
-                "  [InclusionOracle] ARG-kifejtés kezdődik (hipotézis állapotok: %d, ábécé mérete: %d)%n",
+                "  [InclusionOracle] starting ARG exploration (hypothesis states: %d, alphabet size: %d)%n",
                 hypothesis.size(), inputs.size());
 
         while (!waitlist.isEmpty()) {
@@ -103,27 +112,32 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
 
             if (nodeCount % ARG_LOG_INTERVAL == 0) {
                 logger.write(Logger.Level.SUBSTEP,
-                        "  [InclusionOracle] %d csúcs kifejtve, passed=%d, elapsed=%d ms%n",
-                        nodeCount, passed.values().stream().mapToInt(List::size).sum(),
+                        "  [InclusionOracle] %d nodes processed, passed=%d, elapsed=%d ms%n",
+                        nodeCount, passed.size(),
                         System.currentTimeMillis() - startTime);
             }
 
-
-            for (String symbol : inputs) {
+            for (int i = 0; i < symbolCount; i++) {
+                final String symbol = symbols.get(i);
                 S nextDfaState = hypothesis.getTransition(currentDfaState, symbol);
 
-                if (hypothesis.isAccepting(nextDfaState)) {
-                    LearnLibAction<String> action = LearnLibAction.create(symbol);
-                    Collection<? extends ZoneDfaState<S>> succStates =
-                            transFunc.getSuccStates(node.getState(), action, prec);
+                if (nextDfaState == null || !hypothesis.isAccepting(nextDfaState)) {
+                    actionBySymbol[i] = null;
+                    succBySymbol[i] = null;
+                    continue;
+                }
 
+                LearnLibAction<String> action = LearnLibAction.create(symbol);
+                actionBySymbol[i] = action;
+                Collection<? extends ZoneDfaState<S>> succStates =
+                        transFunc.getSuccStates(node.getState(), action, prec);
+                succBySymbol[i] = succStates;
 
-                    if (succStates.isEmpty() || succStates.stream().allMatch(ZoneDfaState::isBottom)) {
-                        Word<String> candidate = extractWord(node).append(symbol);
+                if (allBottom(succStates)) {
+                    Word<String> candidate = extractWord(node).append(symbol);
 
-                        if (!sulAccepts(candidate)) {
-                            return new DefaultQuery<>(candidate, false);
-                        }
+                    if (!sulAccepts(candidate)) {
+                        return new DefaultQuery<>(candidate, false);
                     }
                 }
             }
@@ -132,31 +146,60 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
                 continue;
             }
 
-            List<ArgNode<ZoneDfaState<S>, LearnLibAction<String>>> potentialCoverers =
-                    passed.getOrDefault(currentDfaState, Collections.emptyList());
-
-            boolean subsumed = false;
-            for (var passedNode : potentialCoverers) {
-                if (ord.isLeq(node.getState(), passedNode.getState())) {
-                    subsumed = true;
-                    node.setCoveringNode(passedNode);
-                    break;
-                }
+            final ArgNode<ZoneDfaState<S>, LearnLibAction<String>> coverer =
+                    passed.get(node.getState());
+            if (coverer != null) {
+                node.setCoveringNode(coverer);
+                continue;
             }
-            if (subsumed) continue;
 
             if (node.isTarget()) {
                 return new DefaultQuery<>(extractWord(node), true);
             }
-            passed.computeIfAbsent(currentDfaState, k -> new ArrayList<>()).add(node);
-            argBuilder.expand(node, prec);
+            passed.put(node.getState(), node);
+
+            for (int i = 0; i < symbolCount; i++) {
+                final String symbol = symbols.get(i);
+                if (hypothesis.getTransition(currentDfaState, symbol) == null) {
+                    continue;
+                }
+                LearnLibAction<String> cached = actionBySymbol[i];
+                Collection<? extends ZoneDfaState<S>> succStates;
+                if (cached == null) {
+                    cached = LearnLibAction.create(symbol);
+                    succStates = transFunc.getSuccStates(node.getState(), cached, prec);
+                } else {
+                    succStates = succBySymbol[i];
+                }
+                final LearnLibAction<String> action = cached;
+
+                final boolean needsSiblingScan = succStates.size() > 1;
+                for (final ZoneDfaState<S> succState : succStates) {
+                    if (needsSiblingScan && node.getSuccNodes().anyMatch(n ->
+                            n.getInEdge().get().getAction().equals(action)
+                                    && ord.isLeq(succState, n.getState()))) {
+                        continue;
+                    }
+                    arg.createSuccNode(node, action, succState, targetPred.test(succState));
+                }
+            }
+            node.expanded = true;
             waitlist.addAll(node.getSuccNodes());
         }
 
         logger.write(Logger.Level.SUBSTEP,
-                "  [InclusionOracle] Konvergált — %d csúcs kifejtve, %d ms alatt, ellenpélda: nincs%n",
+                "  [InclusionOracle] converged - %d nodes processed in %d ms, no counterexample%n",
                 nodeCount, System.currentTimeMillis() - startTime);
         return null;
+    }
+
+    private static <S> boolean allBottom(final Collection<? extends ZoneDfaState<S>> succStates) {
+        for (final ZoneDfaState<S> succState : succStates) {
+            if (!succState.isBottom()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private <S> Word<String> extractWord(ArgNode<ZoneDfaState<S>, LearnLibAction<String>> node) {
@@ -171,11 +214,9 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
         return Word.fromList(symbols);
     }
 
-
     private boolean sulAccepts(Word<String> word) {
         DefaultQuery<String, Boolean> q = new DefaultQuery<>(word);
         mqOracle.processQuery(q);
         return Boolean.TRUE.equals(q.getOutput());
     }
-
 }

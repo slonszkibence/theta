@@ -20,6 +20,7 @@ import hu.bme.mit.theta.common.dsl.Scope;
 import hu.bme.mit.theta.common.dsl.Symbol;
 import hu.bme.mit.theta.core.type.Expr;
 import hu.bme.mit.theta.core.type.Type;
+import hu.bme.mit.theta.core.type.booltype.BoolType;
 import hu.bme.mit.theta.core.type.inttype.IntLitExpr;
 import hu.bme.mit.theta.core.utils.ExprUtils;
 import hu.bme.mit.theta.xta.dsl.gen.XtaDslBaseVisitor;
@@ -28,12 +29,13 @@ import hu.bme.mit.theta.xta.utils.ChanType;
 import hu.bme.mit.theta.xta.utils.ClockType;
 import hu.bme.mit.theta.core.type.rangetype.RangeType;
 
+import java.math.BigInteger;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static hu.bme.mit.theta.core.type.arraytype.ArrayExprs.Array;
-import static hu.bme.mit.theta.core.type.booltype.BoolExprs.Bool;
+import static hu.bme.mit.theta.core.type.booltype.BoolExprs.*;
 import static hu.bme.mit.theta.core.type.inttype.IntExprs.Int;
 
 final class XtaType {
@@ -179,5 +181,16 @@ final class XtaType {
 		}
 
 	}
-
+	static Expr<?> coerceToType(final Type expectedType, final Expr<?> expr) {
+		if (expectedType instanceof BoolType && expr instanceof IntLitExpr) {
+			final BigInteger value = ((IntLitExpr) expr).getValue();
+			if (BigInteger.ZERO.equals(value)) {
+				return False();
+			}
+			if (BigInteger.ONE.equals(value)) {
+				return True();
+			}
+		}
+		return expr;
+	}
 }

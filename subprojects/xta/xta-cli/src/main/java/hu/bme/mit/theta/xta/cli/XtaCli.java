@@ -48,7 +48,9 @@ import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheckerConfigFactory;
 import hu.bme.mit.theta.xta.analysis.lazy.*;
 import hu.bme.mit.theta.xta.dsl.XtaDslManager;
-import hu.bme.mit.theta.xta.learning.XtaLearningCheckerExplConfigFactory;
+import hu.bme.mit.theta.xta.learning.XtaLearningCheckerConfig;
+import hu.bme.mit.theta.xta.learning.XtaLearningCheckerConfigFactory;
+import hu.bme.mit.theta.xta.learning.compositional.modelchecking.DiscreteCompositionCheckerFactory;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
 import hu.bme.mit.theta.xta.utils.CTLOperatorNotSupportedException;
 import hu.bme.mit.theta.xta.utils.MixedDataTimeNotSupportedException;
@@ -111,6 +113,38 @@ public final class XtaCli {
 	///  Learning algorithm parameters
 	@Parameter(names = {"--learner", "-l"}, description = "Active learning algorithm (LSTAR, TTT, KandV)")
 	LearningAlgorithmType learnerAlgorithm = LearningAlgorithmType.TTT;
+
+	@Parameter(names = {"--learning-dataDomain"}, description = "Abstract domain for data")
+	XtaLearningCheckerConfigFactory.DataDomain learningDataDomain =
+			XtaLearningCheckerConfigFactory.DataDomain.EXPL;
+
+	@Parameter(names = "--learning-predsplit", description = "Predicate splitting (for predicate abstraction)")
+	XtaLearningCheckerConfigFactory.PredSplit learningPredSplit =
+			XtaLearningCheckerConfigFactory.PredSplit.ATOMS;
+
+	@Parameter(names = {"--learning-dataRefinement"}, description = "Data refinement strategy")
+	XtaLearningCheckerConfigFactory.Refinement learningRefinement =
+			XtaLearningCheckerConfigFactory.Refinement.SEQ_ITP;
+
+	@Parameter(names = {"--learning-initprec"}, description = "Initial precision of the data side")
+	XtaLearningCheckerConfigFactory.InitPrec learningInitPrec =
+			XtaLearningCheckerConfigFactory.InitPrec.ALL_DATA;
+
+	@Parameter(names = "--learning-maxenum", description = "Maximal number of explicitly enumerated successors")
+	Integer learningMaxEnum = 250;
+
+	@Parameter(names = "--learning-maxlearning", description = "Maximal number of hypothesis refinements per outer iteration")
+	Integer learningMaxLearningIterations = 10000;
+
+	@Parameter(names = "--learning-maxouter", description = "Maximal number of outer iterations")
+	Integer learningMaxOuterIterations = 1000;
+
+	@Parameter(names = "--learning-inclusionsearch", description = "Search strategy of the inclusion oracle")
+	XtaLearningCheckerConfig.InclusionSearchStrategy learningInclusionSearch =
+			XtaLearningCheckerConfig.InclusionSearchStrategy.BFS;
+
+	@Parameter(names = "--learning-prunestrategy", description = "Strategy for pruning the composition ARG after refinement")
+	PruneStrategy learningPruneStrategy = PruneStrategy.FULL;
 	/// Common algorithm parameters
 
 	@Parameter(names = {"--clock", "-c"}, description = "Refinement strategy for clock variables", required = false)
@@ -223,8 +257,19 @@ public final class XtaCli {
 	}
 
 	private void runLearning(final XtaSystem system) {
-		final var config = XtaLearningCheckerExplConfigFactory.create(system)
+		final var config = XtaLearningCheckerConfigFactory.create(system)
 				.learningAlgorithmType(learnerAlgorithm)
+				.dataDomain(learningDataDomain)
+				.predSplit(learningPredSplit)
+				.refinement(learningRefinement)
+				.initPrec(learningInitPrec)
+				.maxEnum(learningMaxEnum)
+				.maxLearningIterations(learningMaxLearningIterations)
+				.maxOuterIterations(learningMaxOuterIterations)
+				.inclusionSearchStrategy(learningInclusionSearch)
+				.pruneStrategy(learningPruneStrategy)
+				.searchStrategy(DiscreteCompositionCheckerFactory.SearchStrategy
+						.valueOf(searchStrategy.name()))
 				.build();
 
 		final var result = config.check();

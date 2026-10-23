@@ -18,6 +18,8 @@ package hu.bme.mit.theta.core.type.inttype;
 import hu.bme.mit.theta.core.type.Expr;
 import hu.bme.mit.theta.core.type.Type;
 import hu.bme.mit.theta.core.type.abstracttype.*;
+import hu.bme.mit.theta.core.type.booltype.BoolExprs;
+import hu.bme.mit.theta.core.type.booltype.BoolType;
 import hu.bme.mit.theta.core.type.rattype.RatType;
 
 public class IntType implements Additive<IntType>, Multiplicative<IntType>, Divisible<IntType>, Equational<IntType>, Ordered<IntType>,
@@ -49,7 +51,6 @@ public class IntType implements Additive<IntType>, Multiplicative<IntType>, Divi
 		return TYPE_LABEL;
 	}
 
-	////
 
 	@Override
 	public IntAddExpr Add(final Iterable<? extends Expr<IntType>> ops) {
@@ -125,6 +126,9 @@ public class IntType implements Additive<IntType>, Multiplicative<IntType>, Divi
 	public <TargetType extends Type> Expr<TargetType> Cast(final Expr<IntType> op, final TargetType type) {
 		if (type instanceof RatType) {
 			@SuppressWarnings("unchecked") final Expr<TargetType> result = (Expr<TargetType>) IntExprs.ToRat(op);
+			return result;
+		} else if (type instanceof BoolType) {
+			@SuppressWarnings("unchecked") Expr<TargetType> result = (Expr<TargetType>) BoolExprs.Not(IntExprs.Eq(op, IntExprs.Int(0)));
 			return result;
 		} else {
 			throw new ClassCastException("Int cannot be cast to " + type);

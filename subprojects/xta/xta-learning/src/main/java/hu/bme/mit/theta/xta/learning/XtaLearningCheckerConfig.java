@@ -1,36 +1,33 @@
 package hu.bme.mit.theta.xta.learning;
 
 import hu.bme.mit.theta.analysis.PartialOrd;
+import hu.bme.mit.theta.analysis.TransFunc;
+import hu.bme.mit.theta.analysis.expr.StmtAction;
 import hu.bme.mit.theta.analysis.Prec;
 import hu.bme.mit.theta.analysis.State;
 import hu.bme.mit.theta.analysis.Trace;
 import hu.bme.mit.theta.analysis.algorithm.SafetyChecker;
 import hu.bme.mit.theta.analysis.algorithm.SafetyResult;
-import hu.bme.mit.theta.analysis.zone.BoundFunc;
+import hu.bme.mit.theta.analysis.algorithm.cegar.CegarStatistics;
 import hu.bme.mit.theta.common.logging.Logger;
-import hu.bme.mit.theta.core.clock.constr.AtomicConstr;
-import hu.bme.mit.theta.core.clock.constr.ClockConstr;
-import hu.bme.mit.theta.core.decl.VarDecl;
-import hu.bme.mit.theta.core.type.rattype.RatType;
-import hu.bme.mit.theta.xta.Guard;
-import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.XtaAnalysis;
-import hu.bme.mit.theta.xta.learning.algorithm.EQOracleFactory;
-import hu.bme.mit.theta.xta.learning.algorithm.EQOracleType;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmFactory;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
+import hu.bme.mit.theta.analysis.algorithm.SearchStrategy;
+import hu.bme.mit.theta.xta.learning.compositional.common.TimedStepper;
 import hu.bme.mit.theta.xta.learning.compositional.common.ProductAutomatonBuilder;
-import hu.bme.mit.theta.xta.learning.compositional.common.UntimedAutomatonBuilder;
-import hu.bme.mit.theta.xta.learning.compositional.common.XtaTimingMapper;
+import hu.bme.mit.theta.xta.learning.compositional.common.ZoneSemantics;
 import hu.bme.mit.theta.xta.learning.compositional.inclusion.XtaInclusionOracle;
 import hu.bme.mit.theta.xta.learning.compositional.modelchecking.*;
-import hu.bme.mit.theta.xta.learning.compositional.realizability.XtaRealizablityOracle;
-import hu.bme.mit.theta.xta.learning.compositional.membership.XtaTPrimeSul;
+import hu.bme.mit.theta.xta.learning.compositional.membership.XtaTimedSul;
+import hu.bme.mit.theta.xta.learning.compositional.realizability.XtaRealizabilityOracle;
 
 import net.automatalib.alphabet.Alphabet;
+import net.automatalib.alphabet.SupportsGrowingAlphabet;
 import net.automatalib.alphabet.impl.Alphabets;
+import net.automatalib.alphabet.impl.GrowingMapAlphabet;
 import net.automatalib.automaton.fsa.DFA;
 import net.automatalib.automaton.fsa.impl.FastDFA;
 import net.automatalib.automaton.fsa.impl.FastDFAState;
@@ -45,73 +42,59 @@ import de.learnlib.query.Query;
 import de.learnlib.sul.SUL;
 
 import java.util.*;
+import java.util.LinkedHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
-/**
- * Main orchestrator for the learning-based compositional model checking framework.
- * <p>
- * This class ties together all the components described in Ocan Sankur's architecture:
- * <ol>
- *   <li><b>The Learner:</b> Infers the timing behavior (hypothesis {@code H}) of the system.</li>
- *   <li><b>The Model Checker:</b> Evaluates the safety of the discrete abstraction
- *       composed with the learned hypothesis ({@code A || H}).</li>
- *   <li><b>The Oracles:</b> Answers Membership and Equivalence queries to guide the
- *       learning process, validating counterexamples along the way.</li>
- * </ol>
- *
- * @param <D> The internal data state type (e.g., ExplState or Prod2State).
- * @param <P> The precision type.
- */
 public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
     private final XtaSystem xtaSystem;
     private final LearningAlgorithmType learningAlgorithmType;
-    private final EQOracleType eqOracleType;
     private final ModelCheckingStrategy<D, FastDFAState, P> modelCheckingStrategy;
     private final DiscreteCompositionCheckerFactory.SearchStrategy searchStrategy;
     private final XtaAnalysis<D, P> xtaAnalysis;
     private final P initialPrec;
+    private final TransFunc<D, ? super StmtAction, ? super P> dataTransFunc;
     private final PartialOrd<D> dataOrd;
-    private final int eqMaxDepth;
-    private final int eqRandomMinLength;
-    private final int eqRandomMaxLength;
-    private final int eqRandomMaxTests;
+    private final InclusionSearchStrategy inclusionSearchStrategy;
+    private final int maxLearningIterations;
+    private final int maxOuterIterations;
     private final Logger logger;
 
-    // ── Inner record: CheckContext ─────────────────────────────────────────────
-
-    /**
-     * Immutable context holding all instantiated components for the current verification run.
-     */
     private record CheckContext<D extends State, P extends Prec>(
             Alphabet<String> alphabet,
-            SUL<String, Boolean> mappedSul,
-            FastDFA<String> untimedAutomaton,
+            ZoneSemantics semantics,
+            TimedStepper stepper,
             MembershipOracle.DFAMembershipOracle<String> mqOracle,
-            LearningAlgorithm.DFALearner<String> learner,
             EquivalenceOracle<DFA<?, String>, String, Boolean> eqOracle,
-            XtaRealizablityOracle realizablityOracle,
+            XtaRealizabilityOracle realizabilityOracle,
             XtaAnalysis<D, P> xtaAnalysis,
-            long[] mqCounter
+            long[] mqCounter,
+            long[] sulCounter,
+            long[] eqCounter
     ) {}
 
-    // ── Internal utility records ─────────────────────────────────────────────────
-
     private record LearningPhaseResult(DFA<?, String> hypothesis, int refinements) {}
+
+    private static final class Timings {
+        private long setupMs;
+        private long learningMs;
+        private long modelCheckingMs;
+        private long refinerMs;
+        private long realizabilityMs;
+        private int cegarIterations;
+    }
 
     private record ModelCheckPhaseResult<D extends State>(
             SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> safetyResult,
             int productDfaStates) {}
 
-    /**
-     * Extended result object containing both the formal safety verdict and
-     * execution statistics.
-     */
     public record CheckResult<D extends State>(
             SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> safetyResult,
             LearningStatistics statistics) {}
@@ -119,146 +102,290 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
     private XtaLearningCheckerConfig(
             XtaSystem xtaSystem,
             LearningAlgorithmType learningAlgorithmType,
-            EQOracleType eqOracleType,
             ModelCheckingStrategy<D, FastDFAState, P> modelCheckingStrategy,
             DiscreteCompositionCheckerFactory.SearchStrategy searchStrategy,
             XtaAnalysis<D, P> xtaAnalysis,
+            TransFunc<D, ? super StmtAction, ? super P> dataTransFunc,
             P initialPrec,
             PartialOrd<D> dataOrd,
-            int eqMaxDepth,
-            int eqRandomMinLength,
-            int eqRandomMaxLength,
-            int eqRandomMaxTests,
+            InclusionSearchStrategy inclusionSearchStrategy,
+            int maxLearningIterations,
+            int maxOuterIterations,
             Logger logger
     ) {
+        checkArgument(maxLearningIterations > 0, "maxLearningIterations must be positive");
+        checkArgument(maxOuterIterations > 0, "maxOuterIterations must be positive");
+        this.maxLearningIterations = maxLearningIterations;
+        this.maxOuterIterations = maxOuterIterations;
+        this.inclusionSearchStrategy = checkNotNull(inclusionSearchStrategy);
         this.xtaSystem = checkNotNull(xtaSystem);
         this.learningAlgorithmType = checkNotNull(learningAlgorithmType);
-        this.eqOracleType = checkNotNull(eqOracleType);
         this.modelCheckingStrategy = checkNotNull(modelCheckingStrategy);
         this.searchStrategy = checkNotNull(searchStrategy);
         this.xtaAnalysis = checkNotNull(xtaAnalysis);
+        this.dataTransFunc = checkNotNull(dataTransFunc);
         this.initialPrec = checkNotNull(initialPrec);
         this.dataOrd = checkNotNull(dataOrd);
-        this.eqMaxDepth = eqMaxDepth;
-        this.eqRandomMinLength = eqRandomMinLength;
-        this.eqRandomMaxLength = eqRandomMaxLength;
-        this.eqRandomMaxTests = eqRandomMaxTests;
         this.logger = logger;
+    }
+
+    public enum InclusionSearchStrategy {
+        BFS(SearchStrategy.BFS),
+        DFS(SearchStrategy.DFS),
+        RANDOM(SearchStrategy.RANDOM);
+
+        private final SearchStrategy strategy;
+
+        InclusionSearchStrategy(final SearchStrategy strategy) {
+            this.strategy = strategy;
+        }
+
+        public SearchStrategy strategy() {
+            return strategy;
+        }
     }
 
     public static <D extends State, P extends Prec> XtaLearningCheckerConfig<D, P> create(
             XtaSystem xtaSystem,
             LearningAlgorithmType learningAlgorithmType,
-            EQOracleType eqOracleType,
             ModelCheckingStrategy<D, FastDFAState, P> modelCheckingStrategy,
             DiscreteCompositionCheckerFactory.SearchStrategy searchStrategy,
             XtaAnalysis<D, P> xtaAnalysis,
+            TransFunc<D, ? super StmtAction, ? super P> dataTransFunc,
             P initialPrec,
             PartialOrd<D> dataOrd,
-            int eqMaxDepth,
-            int eqRandomMinLength,
-            int eqRandomMaxLength,
-            int eqRandomMaxTests,
+            InclusionSearchStrategy inclusionSearchStrategy,
+            int maxLearningIterations,
+            int maxOuterIterations,
             Logger logger
     ) {
         return new XtaLearningCheckerConfig<>(
-                xtaSystem, learningAlgorithmType, eqOracleType,
+                xtaSystem, learningAlgorithmType,
                 modelCheckingStrategy, searchStrategy,
-                xtaAnalysis, initialPrec, dataOrd,
-                eqMaxDepth, eqRandomMinLength, eqRandomMaxLength, eqRandomMaxTests,
+                xtaAnalysis, dataTransFunc, initialPrec, dataOrd,
+                inclusionSearchStrategy, maxLearningIterations, maxOuterIterations,
                 logger);
     }
 
-    // ── Public API ───────────────────────────────────────────────────────────
-
-    /**
-     * Executes the main learning-based verification loop.
-     *
-     * @return The standard safety result.
-     */
     public SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> check() {
         return checkWithStats().safetyResult();
     }
 
-    /**
-     * Executes the main learning-based verification loop and returns statistics.
-     *
-     * @return The check result including execution statistics.
-     */
     public CheckResult<D> checkWithStats() {
+        final long startTime = System.currentTimeMillis();
+        final Timings timings = new Timings();
         CheckContext<D, P> ctx = buildContext();
+        timings.setupMs = System.currentTimeMillis() - startTime;
 
         logger.write(Logger.Level.INFO,
-                "[Learning] Starting — alphabet size: %d, algorithm: %s, EQ oracle: %s%n",
-                ctx.alphabet().size(), learningAlgorithmType, eqOracleType);
+                "[Learning] Starting with a lazily discovered alphabet, algorithm: %s%n",
+                learningAlgorithmType);
 
-        ctx.learner().startLearning();
+        LearningAlgorithm.DFALearner<String> learner = null;
+        Alphabet<String> sigma = snapshot(ctx.stepper());
+
+        final Map<String, XtaAction> discovered = new LinkedHashMap<>();
+        final DiscreteCompositionTransFunc.UnknownSymbolHandler collector = discovered::putIfAbsent;
 
         int outerIteration = 0;
         int totalRefinements = 0;
         int lastHypothesisStates = 0;
         int lastProductDfaStates = 0;
-        long startTime = System.currentTimeMillis();
 
-        while (true) {
+        while (outerIteration < maxOuterIterations) {
             outerIteration++;
             logger.write(Logger.Level.MAINSTEP,
                     "%n=== Outer iteration #%d (elapsed: %d ms, MQ: %d) ===%n",
                     outerIteration, System.currentTimeMillis() - startTime, ctx.mqCounter()[0]);
 
-            // Phase 1: Learn Hypothesis
-            LearningPhaseResult lpr = runLearningPhase(ctx);
-            lastHypothesisStates = lpr.hypothesis().size();
-            totalRefinements += lpr.refinements();
+            final DFA<?, String> hypothesis;
+            final FastDFA<String> compositionDfa;
+            final FastDFAState topState;
+            if (learner != null) {
+                final long learningStart = System.currentTimeMillis();
+                final LearningPhaseResult lpr = runLearningPhase(ctx, learner, sigma);
+                timings.learningMs += System.currentTimeMillis() - learningStart;
+                totalRefinements += lpr.refinements();
+                hypothesis = lpr.hypothesis();
+                compositionDfa = ProductAutomatonBuilder.copy(hypothesis, sigma);
+                topState = ProductAutomatonBuilder.addUniversalState(compositionDfa, sigma);
+            } else {
+                final FastDFA<String> everything = unconstrained(sigma);
+                hypothesis = everything;
+                compositionDfa = everything;
+                topState = everything.getInitialState();
+                logger.write(Logger.Level.MAINSTEP,
+                        "  [Precheck] Discrete-only round: the assumption accepts every word,"
+                                + " so this checks A alone%n");
+            }
+            lastHypothesisStates = hypothesis.size();
 
-            // Phase 2: Model Check A || H
-            ModelCheckPhaseResult<D> mcr = runModelCheckingPhase(ctx, lpr.hypothesis());
+            discovered.clear();
+            final long modelCheckStart = System.currentTimeMillis();
+            ModelCheckPhaseResult<D> mcr =
+                    runModelCheckingPhase(ctx, compositionDfa, sigma, topState, collector);
+            timings.modelCheckingMs += System.currentTimeMillis() - modelCheckStart;
             lastProductDfaStates = mcr.productDfaStates();
+            collectCegarStatistics(mcr.safetyResult(), timings);
 
-            // If the discrete model is safe, the real timed system is guaranteed to be safe
-            if (mcr.safetyResult().isSafe()) {
-                logger.write(Logger.Level.RESULT,
-                        "Result: SAFE (%d outer iterations, %d MQ, %d ms)%n",
-                        outerIteration, ctx.mqCounter()[0], System.currentTimeMillis() - startTime);
-                return new CheckResult<>(mcr.safetyResult(),
-                        new LearningStatistics(lastHypothesisStates, lastProductDfaStates,
-                                totalRefinements, outerIteration, ctx.mqCounter()[0]));
+            final List<String> newSymbols = register(ctx.stepper(), discovered);
+            if (!newSymbols.isEmpty()) {
+                if (learner != null) {
+                    growLearnerAlphabet(learner, newSymbols);
+                }
+                sigma = snapshot(ctx.stepper());
+                logger.write(Logger.Level.MAINSTEP,
+                        "  [Alphabet] %d symbol(s) discovered, the alphabet is now %d%n",
+                        newSymbols.size(), sigma.size());
             }
 
-            // Phase 3: Validate Counterexample
-            Word<String> cexWord = extractWord(mcr.safetyResult().asUnsafe().getTrace(), ctx.alphabet());
+            if (mcr.safetyResult().isSafe()) {
+                logger.write(Logger.Level.RESULT,
+                        "Result: SAFE (%d outer iterations, %d symbols, %d MQ, %d ms)%n",
+                        outerIteration, sigma.size(), ctx.mqCounter()[0],
+                        System.currentTimeMillis() - startTime);
+                return finish(ctx, mcr.safetyResult(), timings, lastHypothesisStates,
+                        lastProductDfaStates, sigma.size(), totalRefinements, outerIteration,
+                        startTime);
+            }
+
+            final Trace<DiscreteCompositionState<D, FastDFAState>, XtaAction> cexTrace =
+                    mcr.safetyResult().asUnsafe().getTrace();
+
+            Word<String> cexWord = extractWord(cexTrace, ctx.stepper());
             logger.write(Logger.Level.MAINSTEP,
                     "  [Counterexample] Length: %d, checking realizability...%n", cexWord.size());
 
-            if (ctx.realizablityOracle().isRealizable(cexWord)) {
+            final long realizabilityStart = System.currentTimeMillis();
+            final boolean realizable = ctx.realizabilityOracle().isRealizable(cexWord);
+            timings.realizabilityMs += System.currentTimeMillis() - realizabilityStart;
+            if (realizable) {
                 logger.write(Logger.Level.RESULT,
-                        "Result: UNSAFE (%d outer iterations, %d MQ, %d ms)%n",
-                        outerIteration, ctx.mqCounter()[0], System.currentTimeMillis() - startTime);
-                return new CheckResult<>(mcr.safetyResult(),
-                        new LearningStatistics(lastHypothesisStates, lastProductDfaStates,
-                                totalRefinements, outerIteration, ctx.mqCounter()[0]));
+                        "Result: UNSAFE (%d outer iterations, %d symbols, %d MQ, %d ms)%n",
+                        outerIteration, sigma.size(), ctx.mqCounter()[0],
+                        System.currentTimeMillis() - startTime);
+                return finish(ctx, mcr.safetyResult(), timings, lastHypothesisStates,
+                        lastProductDfaStates, sigma.size(), totalRefinements, outerIteration,
+                        startTime);
             }
 
-            // The counterexample is spurious (timing infeasible). Refine the hypothesis.
-            logger.write(Logger.Level.MAINSTEP,
-                    "  [Spurious] Refining hypothesis with word (length %d)%n", cexWord.size());
-            ctx.learner().refineHypothesis(new DefaultQuery<>(cexWord, false));
+            if (learner == null) {
+                logger.write(Logger.Level.MAINSTEP,
+                        "  [Precheck] A alone is not safe, starting the learner%n");
+
+                learner = LearningAlgorithmFactory.create(
+                        learningAlgorithmType, new GrowingMapAlphabet<>(sigma), ctx.mqOracle());
+                learner.startLearning();
+            }
+
+            if (learner.getHypothesisModel().accepts(cexWord)) {
+                logger.write(Logger.Level.MAINSTEP,
+                        "  [Spurious] Refining hypothesis with word (length %d)%n", cexWord.size());
+                learner.refineHypothesis(new DefaultQuery<>(cexWord, false));
+            } else {
+                logger.write(Logger.Level.MAINSTEP,
+                        "  [Spurious] The hypothesis already rejects the word, no refinement%n");
+            }
+        }
+
+        throw new IllegalStateException(
+                "The outer loop did not converge within " + maxOuterIterations
+                        + " iterations - raise maxOuterIterations if this is a large model");
+    }
+
+    private CheckResult<D> finish(
+            final CheckContext<D, P> ctx,
+            final SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> safetyResult,
+            final Timings timings, final int hypothesisStates, final int compositionDfaStates,
+            final int alphabetSize, final int refinements, final int outerIterations,
+            final long startTime) {
+        final LearningStatistics statistics = new LearningStatistics(
+                hypothesisStates, compositionDfaStates, alphabetSize, refinements, outerIterations,
+                timings.cegarIterations, ctx.mqCounter()[0], ctx.sulCounter()[0],
+                ctx.eqCounter()[0], System.currentTimeMillis() - startTime, timings.setupMs,
+                timings.learningMs, timings.modelCheckingMs, timings.refinerMs,
+                timings.realizabilityMs);
+        logger.write(Logger.Level.RESULT, "%s", statistics);
+        return new CheckResult<>(withStatistics(safetyResult, statistics), statistics);
+    }
+
+    private SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> withStatistics(
+            final SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> safetyResult,
+            final LearningStatistics statistics) {
+        return safetyResult.isSafe()
+                ? SafetyResult.safe(safetyResult.getArg(), statistics)
+                : SafetyResult.unsafe(safetyResult.asUnsafe().getTrace(), safetyResult.getArg(),
+                        statistics);
+    }
+
+    private static <D extends State> void collectCegarStatistics(
+            final SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> safetyResult,
+            final Timings timings) {
+        safetyResult.getStats()
+                .filter(CegarStatistics.class::isInstance)
+                .map(CegarStatistics.class::cast)
+                .ifPresent(cegarStatistics -> {
+                    timings.cegarIterations += cegarStatistics.getIterations();
+                    timings.refinerMs += cegarStatistics.getRefinerTimeMs();
+                });
+    }
+
+    private static FastDFA<String> unconstrained(final Alphabet<String> alphabet) {
+        final FastDFA<String> dfa = new FastDFA<>(alphabet);
+        final FastDFAState state = dfa.addState(true);
+        dfa.setInitialState(state);
+        for (final String symbol : alphabet) {
+            dfa.addTransition(state, symbol, state);
+        }
+        return dfa;
+    }
+
+    private static Alphabet<String> snapshot(final TimedStepper stepper) {
+        return Alphabets.fromCollection(new ArrayList<>(stepper.alphabet()));
+    }
+
+    private static List<String> register(final TimedStepper stepper,
+                                         final Map<String, XtaAction> discovered) {
+        final List<String> newSymbols = new ArrayList<>();
+        for (final XtaAction action : discovered.values()) {
+            final int before = stepper.alphabet().size();
+            final String symbol = stepper.register(action);
+            if (stepper.alphabet().size() > before) {
+                newSymbols.add(symbol);
+            }
+        }
+        return newSymbols;
+    }
+
+    private static void growLearnerAlphabet(final LearningAlgorithm.DFALearner<String> learner,
+                                            final List<String> symbols) {
+        if (!(learner instanceof SupportsGrowingAlphabet)) {
+            throw new UnsupportedOperationException(
+                    "The alphabet is discovered during the search, so the learner has to accept"
+                            + " new symbols: " + learner.getClass().getSimpleName()
+                            + " does not implement SupportsGrowingAlphabet");
+        }
+        @SuppressWarnings("unchecked")
+        final SupportsGrowingAlphabet<String> growing = (SupportsGrowingAlphabet<String>) learner;
+        for (final String symbol : symbols) {
+            growing.addAlphabetSymbol(symbol);
         }
     }
 
-    // ── Learning Phase ─────────────────────────────────────────────────────────
-
-    private LearningPhaseResult runLearningPhase(CheckContext<D, P> ctx) {
+    private LearningPhaseResult runLearningPhase(CheckContext<D, P> ctx,
+                                                LearningAlgorithm.DFALearner<String> learner,
+                                                Alphabet<String> sigma) {
         long start = System.currentTimeMillis();
         int refinements = 0;
 
-        while (true) {
-            DFA<?, String> hypothesis = ctx.learner().getHypothesisModel();
+        while (refinements < maxLearningIterations) {
+            DFA<?, String> hypothesis = learner.getHypothesisModel();
             logger.write(Logger.Level.SUBSTEP,
                     "  [Learning] Hypothesis states: %d, running EQ oracle...%n", hypothesis.size());
 
+            ctx.eqCounter()[0]++;
             DefaultQuery<String, Boolean> ceq =
-                    ctx.eqOracle().findCounterExample(hypothesis, ctx.alphabet());
+                    ctx.eqOracle().findCounterExample(hypothesis, sigma);
             if (ceq == null) {
                 logger.write(Logger.Level.MAINSTEP,
                         "  [Learning] Converged after %d refinements in %d ms. States: %d%n",
@@ -269,23 +396,25 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             refinements++;
             logger.write(Logger.Level.SUBSTEP,
                     "  [Learning] Counterexample (length %d), refining...%n", ceq.getInput().size());
-            ctx.learner().refineHypothesis(ceq);
+            learner.refineHypothesis(ceq);
         }
-    }
 
-    // ── Model Checking Phase ────────────────────────────────────────────────
+        throw new IllegalStateException(
+                "The learner did not converge within " + maxLearningIterations
+                        + " refinements - raise maxLearningIterations if this is a large model");
+    }
 
     private static final int MODEL_CHECK_LOG_INTERVAL_SEC = 5;
 
     private ModelCheckPhaseResult<D> runModelCheckingPhase(
-            CheckContext<D, P> ctx, DFA<?, String> hypothesis) {
-        FastDFA<String> productDFA = ProductAutomatonBuilder.buildProduct(
-                ctx.untimedAutomaton(), hypothesis, ctx.alphabet());
+            CheckContext<D, P> ctx, FastDFA<String> compositionDfa, Alphabet<String> sigma,
+            FastDFAState topState, DiscreteCompositionTransFunc.UnknownSymbolHandler collector) {
         logger.write(Logger.Level.SUBSTEP,
-                "  [ModelCheck] Product DFA states: %d, starting checker...%n", productDFA.size());
+                "  [ModelCheck] Composition DFA states: %d, starting checker...%n",
+                compositionDfa.size());
 
         SafetyChecker<DiscreteCompositionState<D, FastDFAState>, XtaAction, P> checker =
-                buildChecker(ctx, productDFA);
+                buildChecker(ctx, compositionDfa, sigma, collector, topState);
 
         long start = System.currentTimeMillis();
 
@@ -300,9 +429,15 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                                 (System.currentTimeMillis() - start) / 1000),
                 MODEL_CHECK_LOG_INTERVAL_SEC, MODEL_CHECK_LOG_INTERVAL_SEC, TimeUnit.SECONDS);
 
+        final P prec = modelCheckingStrategy.reusablePrec(initialPrec);
+        if (!prec.equals(initialPrec)) {
+            logger.write(Logger.Level.SUBSTEP,
+                    "  [ModelCheck] Reusing the precision refined in an earlier iteration%n");
+        }
+
         SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> result;
         try {
-            result = checker.check(initialPrec);
+            result = checker.check(prec);
         } finally {
             progressTask.cancel(false);
             scheduler.shutdown();
@@ -311,111 +446,83 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
         logger.write(Logger.Level.MAINSTEP,
                 "  [ModelCheck] Result: %s in %d ms%n",
                 result.isSafe() ? "SAFE" : "UNSAFE", System.currentTimeMillis() - start);
-        return new ModelCheckPhaseResult<>(result, productDFA.size());
+        return new ModelCheckPhaseResult<>(result, compositionDfa.size());
     }
-    // ── Context Initialization ───────────────────────────────────────────────────
 
     private CheckContext<D, P> buildContext() {
-        Map<VarDecl<RatType>, Integer> ceilings = computeCeilings(xtaSystem);
-        BoundFunc luBounds = computeLuBounds(xtaSystem);
+        final ZoneSemantics semantics = ZoneSemantics.of(xtaSystem);
+        final TimedStepper stepper = TimedStepper.of(xtaSystem, semantics);
+        final Alphabet<String> alphabet = stepper.alphabet();
+        final SUL<String, Boolean> mappedSul = XtaTimedSul.create(stepper);
 
-        XtaTPrimeSul sul = XtaTPrimeSul.create(ceilings);
-        XtaTimingMapper<Boolean, Boolean> mapper = XtaTimingMapper.create(xtaSystem, output -> output);
-        Alphabet<String> alphabet = Alphabets.fromCollection(mapper.getAlphabet());
-        SUL<String, Boolean> mappedSul = new MappedSUL<>(mapper, sul);
-
-        FastDFA<String> untimedAutomaton = buildUntimedAutomaton(alphabet);
         long[] mqCounter = {0};
+        long[] sulCounter = {0};
+        long[] eqCounter = {0};
         MembershipOracle.DFAMembershipOracle<String> mqOracle =
-                buildMqOracle(mappedSul, untimedAutomaton, mqCounter);
+                buildMqOracle(mappedSul, mqCounter, sulCounter);
 
-        LearningAlgorithm.DFALearner<String> learner =
-                LearningAlgorithmFactory.create(learningAlgorithmType, alphabet, mqOracle);
         EquivalenceOracle<DFA<?, String>, String, Boolean> eqOracle =
-                EQOracleFactory.create(eqOracleType, mqOracle,
-                        XtaInclusionOracle.create(ceilings, mapper, luBounds, mqOracle, logger),
-                        eqMaxDepth, eqRandomMinLength, eqRandomMaxLength, eqRandomMaxTests);
-        XtaRealizablityOracle realizablityOracle = XtaRealizablityOracle.create(mappedSul, untimedAutomaton, logger);
+                XtaInclusionOracle.create(semantics, stepper, mqOracle,
+                        inclusionSearchStrategy.strategy(), logger);
+        XtaRealizabilityOracle realizabilityOracle =
+                XtaRealizabilityOracle.create(mqOracle, logger);
 
         logger.write(Logger.Level.INFO,
-                "[Context] Untimed automaton states: %d, alphabet size: %d%n",
-                untimedAutomaton != null ? untimedAutomaton.size() : 0, alphabet.size());
+                "[Context] Inclusion search: %s, initial delay: %s, zones: %s%n",
+                inclusionSearchStrategy,
+                semantics.initialDelayAllowed() ? "allowed" : "forbidden (urgent/committed init)",
+                semantics.normalize() ? "k-normalized, LU subsumption"
+                        : "exact (diagonal constraints present)");
 
         return new CheckContext<>(
-                alphabet, mappedSul, untimedAutomaton,
-                mqOracle, learner, eqOracle, realizablityOracle, xtaAnalysis, mqCounter);
+                alphabet, semantics, stepper,
+                mqOracle, eqOracle, realizabilityOracle, xtaAnalysis,
+                mqCounter, sulCounter, eqCounter);
     }
 
-    // ── Checker Builder ─────────────────────────────────────────────────────
-
     private SafetyChecker<DiscreteCompositionState<D, FastDFAState>, XtaAction, P> buildChecker(
-            CheckContext<D, P> ctx, FastDFA<String> productDFA) {
+            CheckContext<D, P> ctx, FastDFA<String> compositionDfa, Alphabet<String> sigma,
+            DiscreteCompositionTransFunc.UnknownSymbolHandler collector, FastDFAState topState) {
         Predicate<DiscreteCompositionState<D, FastDFAState>> targetPred =
                 state -> state.getXtaState().isError();
 
         DiscreteCompositionAnalysis<D, FastDFAState, P> analysis =
                 DiscreteCompositionAnalysis.create(
                         DiscreteCompositionOrd.create(dataOrd),
-                        ctx.alphabet(),
-                        productDFA,
+                        sigma,
+                        compositionDfa,
                         ctx.xtaAnalysis().getInitFunc(),
-                        ctx.xtaAnalysis().getTransFunc());
+                        dataTransFunc,
+                        ctx.stepper(),
+                        collector,
+                        topState);
 
         DiscreteCompositionLts<D, FastDFAState> lts =
-                DiscreteCompositionLts.create(xtaSystem, ctx.alphabet(), productDFA);
+                DiscreteCompositionLts.create(xtaSystem);
 
         return DiscreteCompositionCheckerFactory.create(
                 modelCheckingStrategy, searchStrategy, analysis, lts, targetPred);
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────
-
-    private FastDFA<String> buildUntimedAutomaton(Alphabet<String> alphabet) {
-        FastDFA<String> result = null;
-        for (XtaProcess process : xtaSystem.getProcesses()) {
-            FastDFA<String> procDFA = UntimedAutomatonBuilder.build(process, alphabet);
-            Set<String> procSymbols = new HashSet<>();
-            for (XtaProcess.Edge edge : process.getEdges()) {
-                procSymbols.add(XtaTimingMapper.generateSymbolForEdge(edge));
-            }
-            for (FastDFAState state : procDFA.getStates()) {
-                for (String sym : alphabet) {
-                    if (!procSymbols.contains(sym) && procDFA.getTransition(state, sym) == null) {
-                        procDFA.setTransition(state, sym, state);
-                    }
-                }
-            }
-            result = (result == null)
-                    ? procDFA
-                    : ProductAutomatonBuilder.buildProduct(result, procDFA, alphabet);
-        }
-        return result;
-    }
-
     private static final int MQ_LOG_INTERVAL = 200;
 
     private MembershipOracle.DFAMembershipOracle<String> buildMqOracle(
-            SUL<String, Boolean> mappedSul, FastDFA<String> untimedAutomaton, long[] mqCounter) {
+            SUL<String, Boolean> mappedSul, long[] mqCounter, long[] sulCounter) {
         Map<Word<String>, Boolean> cache = new HashMap<>();
         return queries -> {
             for (Query<String, Boolean> query : queries) {
+                mqCounter[0]++;
                 query.answer(cache.computeIfAbsent(query.getInput(), word -> {
-                    mqCounter[0]++;
-                    if (mqCounter[0] % MQ_LOG_INTERVAL == 0) {
+                    sulCounter[0]++;
+                    if (sulCounter[0] % MQ_LOG_INTERVAL == 0) {
                         logger.write(Logger.Level.SUBSTEP,
-                                "  [MQ] #%d query (cache: %d entries, word length: %d)%n",
-                                mqCounter[0], cache.size(), word.size());
+                                "  [MQ] #%d SUL run (cache: %d entries, word length: %d)%n",
+                                sulCounter[0], cache.size(), word.size());
                     }
-                    return queryMembership(mappedSul, untimedAutomaton, word);
+                    return runMembershipQuery(mappedSul, word);
                 }));
             }
         };
-    }
-
-    private boolean queryMembership(
-            SUL<String, Boolean> sul, FastDFA<String> untimedAutomaton, Word<String> word) {
-        if (!untimedAutomaton.accepts(word)) return true;
-        return runMembershipQuery(sul, word);
     }
 
     private boolean runMembershipQuery(SUL<String, Boolean> sul, Word<String> word) {
@@ -433,93 +540,11 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
 
     private Word<String> extractWord(
             Trace<DiscreteCompositionState<D, FastDFAState>, XtaAction> trace,
-            Alphabet<String> alphabet) {
+            TimedStepper stepper) {
         List<String> symbols = new ArrayList<>();
         for (XtaAction action : trace.getActions()) {
-            for (XtaProcess.Edge edge : getEdgesForAction(action)) {
-                String symbol = XtaTimingMapper.generateSymbolForEdge(edge);
-                if (alphabet.containsSymbol(symbol)) {
-                    symbols.add(symbol);
-                    break;
-                }
-            }
+            symbols.add(stepper.symbolOf(action));
         }
         return Word.fromList(symbols);
-    }
-
-    private List<XtaProcess.Edge> getEdgesForAction(XtaAction action) {
-        List<XtaProcess.Edge> edges = new ArrayList<>();
-        if (action.isBasic()) {
-            edges.add(action.asBasic().getEdge());
-        } else if (action.isBinary()) {
-            edges.add(action.asBinary().getEmitEdge());
-            edges.add(action.asBinary().getRecvEdge());
-        } else if (action.isBroadcast()) {
-            edges.add(action.asBroadcast().getEmitEdge());
-            edges.addAll(action.asBroadcast().getRecvEdges());
-        }
-        return edges;
-    }
-
-    // ── Clock Bound Calculations ──────────────────────────────────────────────────
-
-    private static Map<VarDecl<RatType>, Integer> computeCeilings(XtaSystem system) {
-        Map<VarDecl<RatType>, Integer> ceilings = new HashMap<>();
-        for (VarDecl<RatType> clock : system.getClockVars()) {
-            ceilings.put(clock, 0);
-        }
-        for (XtaProcess process : system.getProcesses()) {
-            for (XtaProcess.Edge edge : process.getEdges()) {
-                for (Guard guard : edge.getGuards()) {
-                    if (guard.isClockGuard()) updateCeiling(ceilings, guard.asClockGuard());
-                }
-            }
-            for (XtaProcess.Loc loc : process.getLocs()) {
-                for (Guard inv : loc.getInvars()) {
-                    if (inv.isClockGuard()) updateCeiling(ceilings, inv.asClockGuard());
-                }
-            }
-        }
-        return ceilings;
-    }
-
-    private static void updateCeiling(
-            Map<VarDecl<RatType>, Integer> ceilings, Guard.ClockGuard guard) {
-        ClockConstr constr = guard.getClockConstr();
-        if (constr instanceof AtomicConstr ac) {
-            int bound = ac.getBound();
-            for (VarDecl<RatType> variable : constr.getVars()) {
-                ceilings.merge(variable, bound, Math::max);
-            }
-        }
-    }
-
-    private static BoundFunc computeLuBounds(XtaSystem system) {
-        BoundFunc.Builder builder = BoundFunc.builder();
-        for (XtaProcess process : system.getProcesses()) {
-            for (XtaProcess.Loc loc : process.getLocs()) {
-                for (Guard guard : loc.getInvars()) {
-                    if (guard.isClockGuard()) {
-                        addClockConstrToBounds(builder, guard.asClockGuard().getClockConstr());
-                    }
-                }
-            }
-            for (XtaProcess.Edge edge : process.getEdges()) {
-                for (Guard guard : edge.getGuards()) {
-                    if (guard.isClockGuard()) {
-                        addClockConstrToBounds(builder, guard.asClockGuard().getClockConstr());
-                    }
-                }
-            }
-        }
-        return builder.build();
-    }
-
-    private static void addClockConstrToBounds(BoundFunc.Builder builder, ClockConstr constr) {
-        try {
-            builder.add(constr);
-        } catch (UnsupportedOperationException e) {
-            // Diagonális feltételek (pl. DiffGeqConstr: x - y >= c) nem támogatottak — kihagyás
-        }
     }
 }

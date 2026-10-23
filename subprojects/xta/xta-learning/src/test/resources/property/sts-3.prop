@@ -1,1 +1,3 @@
-A[] not (A1.Go && A2.Go) && not (A1.Go && A3.Go) && not (A2.Go && A3.Go)
+prop{
+    A[] not ((A1_Go && A2_Go) || (A1_Go && A3_Go) || (A2_Go && A3_Go))
+}

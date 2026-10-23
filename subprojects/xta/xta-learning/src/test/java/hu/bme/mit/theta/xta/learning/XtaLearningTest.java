@@ -6,7 +6,6 @@ import hu.bme.mit.theta.xta.XtaSystem;
 import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheckerConfig;
 import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheckerConfigFactory;
 import hu.bme.mit.theta.xta.dsl.XtaDslManager;
-import hu.bme.mit.theta.xta.learning.algorithm.EQOracleType;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
 import hu.bme.mit.theta.xta.learning.compositional.modelchecking.DiscreteCompositionCheckerFactory;
 import org.junit.Assert;
@@ -26,37 +25,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Parameterized integration test for the learning-based compositional XTA checker.
- * <p>
- * This test suite systematically verifies the correctness and performance of the
- * new learning-based verification approach. For a predefined set of models, it compares
- * the outcomes of the new learning algorithm against a trusted baseline
- * ({@link CombinedLazyCegarXtaCheckerConfig}).
- * <p>
- * The test is parameterized to run every combination of:
- * <ul>
- *   <li><b>Model:</b> The XTA model and its corresponding safety property.</li>
- *   <li><b>Learner:</b> The active learning algorithm used (e.g., L*, TTT).</li>
- *   <li><b>Search Strategy:</b> The exploration strategy for the discrete model checking
- *       phase (e.g., BFS, DFS).</li>
- * </ul>
- * It outputs a formatted table to the console detailing execution times,
- * state space sizes, refinement steps, and the number of Membership Queries (MQ)
- * for performance analysis.
- */
 @RunWith(Parameterized.class)
 public class XtaLearningTest {
     private static final List<Object[]> MODELS = List.of(
-            //new Object[]{"/model/Deadlock1Clock.xta", "/property/Deadlock1Clock.prop", true},
-            //new Object[]{"/model/Deadlock2Clock.xta", "/property/Deadlock2Clock.prop", true},
-            //new Object[]{"/model/DeadlockImmediate.xta", "/property/DeadlockImmediate.prop", true},
-            //new Object[]{"/model/Desync.xta", "/property/Desync.prop", true},
-            //new Object[]{"/model/Diagonal.xta", "/property/Diagonal.prop", true},
-            //new Object[]{"/model/PointInterval.xta", "/property/PointInterval.prop", true},
-            //new Object[]{"/model/Strict.xta", "/property/Strict.prop", true},
-            //new Object[]{"/model/Zeno.xta", "/property/Zeno.prop", true},
-            //new Object[]{"/model/ComplexBranching.xta", "/property/ComplexBranching.prop", true},
+
+            new Object[]{"/model/7.xta", "/property/7.prop", true},
             new Object[]{"/model/fischer-2-32-64.xta", "/property/fischer-2-32-64.prop", true},
             new Object[]{"/model/leader_stateless_a.xta", "/property/leader_stateless_a.prop", true},
             new Object[]{"/model/leader_stateless_b.xta", "/property/leader_stateless_b.prop", true},
@@ -107,7 +80,6 @@ public class XtaLearningTest {
         return cases;
     }
 
-    // If true, the learning process will write SUBSTEP level logs to the console
     private static final boolean VERBOSE_LOGGING = false;
 
     @BeforeClass
@@ -134,20 +106,16 @@ public class XtaLearningTest {
 
     @Test
     public void testXtaLearning() throws Exception {
-        // --- 1. Run CombinedLazyCegar (Baseline) ---
-
         long classicStart = System.currentTimeMillis();
         CombinedLazyCegarXtaCheckerConfig classicConfig =
                 CombinedLazyCegarXtaCheckerConfigFactory.create(xtaSystem).build();
         SafetyResult<?, ?> classicResult = classicConfig.check();
         long classicTime = System.currentTimeMillis() - classicStart;
 
-        // --- 2. Run Learning algorithm (with statistics) ---
         long learningStart = System.currentTimeMillis();
-        XtaLearningCheckerExplConfigFactory factory = XtaLearningCheckerExplConfigFactory
+        XtaLearningCheckerConfigFactory factory = XtaLearningCheckerConfigFactory
                 .create(xtaSystem)
                 .learningAlgorithmType(learningAlgorithmType)
-                .eqOracleType(EQOracleType.XTA_INCLUSION)
                 .searchStrategy(searchStrategy);
         if (VERBOSE_LOGGING) {
             factory.consoleLogger(Logger.Level.SUBSTEP);
@@ -159,7 +127,6 @@ public class XtaLearningTest {
         SafetyResult<?, ?> learningResult = checkResult.safetyResult();
         LearningStatistics stats = checkResult.statistics();
 
-        // --- Output ---
         String modelName = modelPath.substring(modelPath.lastIndexOf('/') + 1);
         System.out.printf("%-30s | %-6s | %-6s | %-10d | %-10d | %-8s | %-8s | %-6d | %-10d | %-7d | %-8d%n",
                 modelName,
@@ -167,22 +134,23 @@ public class XtaLearningTest {
                 searchStrategy,
                 classicTime,
                 learningTime,
-                classicResult.isSafe()  ? "SAFE" : "UNSAFE",
-                learningResult.isSafe() ? "SAFE" : "UNSAFE",
+                PropertyVerdict.describe(xtaSystem, classicResult.isSafe()),
+                PropertyVerdict.describe(xtaSystem, learningResult.isSafe()),
                 stats.hypothesisStates(),
                 stats.productDfaStates(),
                 stats.totalRefinements(),
                 stats.totalMqQueries());
 
-        // --- Assertions ---
         Assert.assertEquals(
-                "Incorrect expectedSafety: Classic=" + classicResult.isSafe() +
-                        " vs expected=" + expectedSafety + " | " + modelPath,
-                expectedSafety, classicResult.isSafe());
+                "Incorrect expectedSafety: Classic="
+                        + PropertyVerdict.holds(xtaSystem, classicResult.isSafe())
+                        + " vs expected=" + expectedSafety + " | " + modelPath,
+                expectedSafety, PropertyVerdict.holds(xtaSystem, classicResult.isSafe()));
 
         Assert.assertEquals(
                 "Differing result: " + learningAlgorithmType + "+" + searchStrategy
                         + " | " + modelPath,
-                classicResult.isSafe(), learningResult.isSafe());
+                PropertyVerdict.holds(xtaSystem, classicResult.isSafe()),
+                PropertyVerdict.holds(xtaSystem, learningResult.isSafe()));
     }
 }

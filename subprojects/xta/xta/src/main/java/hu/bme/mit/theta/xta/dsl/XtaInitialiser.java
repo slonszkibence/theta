@@ -39,7 +39,7 @@ final class XtaInitialiser {
 
 	public Expr<?> instantiate(final Type type, final Env env) {
 		final InitialiserInstantiationVisitor visitor = new InitialiserInstantiationVisitor(env);
-		final Expr<?> expr = context.accept(visitor);
+		final Expr<?> expr = XtaType.coerceToType(type, context.accept(visitor));
 		checkArgument(expr.getType().equals(type));
 		return expr;
 	}
