@@ -25,6 +25,7 @@ import hu.bme.mit.theta.analysis.algorithm.ARG;
 import hu.bme.mit.theta.analysis.algorithm.SafetyChecker;
 import hu.bme.mit.theta.analysis.algorithm.SafetyResult;
 import hu.bme.mit.theta.analysis.algorithm.SearchStrategy;
+import hu.bme.mit.theta.analysis.algorithm.Statistics;
 import hu.bme.mit.theta.analysis.algorithm.cegar.Abstractor;
 import hu.bme.mit.theta.analysis.algorithm.lazy.LazyState;
 import hu.bme.mit.theta.analysis.algorithm.runtimecheck.ArgCexCheckHandler;
@@ -274,6 +275,22 @@ public final class XtaCli {
 
 		final var result = config.check();
 		resultPrinter(result.isSafe(), result.isUnsafe(), system);
+		result.getStats().ifPresent(this::printLearningStatistics);
+	}
+
+	private void printLearningStatistics(final Statistics stats) {
+		if (!benchmarkMode) {
+			System.out.print(stats);
+			return;
+		}
+		for (final String key : stats.keySet()) {
+			writer.cell(key);
+		}
+		writer.newRow();
+		for (final String key : stats.keySet()) {
+			writer.cell(stats.get(key));
+		}
+		writer.newRow();
 	}
 
 	private void resultPrinter(final boolean isSafe, final boolean isUnsafe, final XtaSystem system) {
