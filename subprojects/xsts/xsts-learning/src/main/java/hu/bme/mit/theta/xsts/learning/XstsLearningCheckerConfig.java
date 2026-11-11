@@ -103,14 +103,12 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
     private final PartialOrd<S> dataOrd;
     private final int maxLearningIterations;
     private final int maxOuterIterations;
-    private final ClockPrec clockPrec;
+    private final XstsLearningCheckerConfigFactory.ClockPrec clockPrec;
     private final Logger logger;
 
     private CheckResult<S> lastResult;
 
-    public enum ClockPrec {
-        ALL, LAZY
-    }
+
 
     private XstsLearningCheckerConfig(
             final XSTS xsts,
@@ -124,7 +122,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
             final PartialOrd<S> dataOrd,
             final int maxLearningIterations,
             final int maxOuterIterations,
-            final ClockPrec clockPrec,
+            final XstsLearningCheckerConfigFactory.ClockPrec clockPrec,
             final Logger logger
     ) {
         this.xsts = checkNotNull(xsts);
@@ -154,7 +152,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
             final PartialOrd<S> dataOrd,
             final int maxLearningIterations,
             final int maxOuterIterations,
-            final ClockPrec clockPrec,
+            final XstsLearningCheckerConfigFactory.ClockPrec clockPrec,
             final Logger logger
     ) {
         return new XstsLearningCheckerConfig<>(
@@ -218,7 +216,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         final long[] eqCounter = {0};
         final List<VarDecl<ClockType>> clocks = allClocks();
         Set<VarDecl<ClockType>> tracked =
-                clockPrec == ClockPrec.ALL ? new LinkedHashSet<>(clocks) : Set.of();
+                clockPrec == XstsLearningCheckerConfigFactory.ClockPrec.ALL ? new LinkedHashSet<>(clocks) : Set.of();
         CheckContext<S, P> ctx = buildContext(clocks, tracked, mqCounter, eqCounter);
         final long setupMs = System.currentTimeMillis() - setupStart;
         final long[] learningMs = {0};

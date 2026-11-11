@@ -145,7 +145,7 @@ public class XstsCli {
 	Integer maxLearningIterations = 0;
 
 	@Parameter(names = {"--learning-clockprec"}, description = "Clocks the learned timing language is built over: ALL clocks, or LAZY (start from none, add clocks from spurious counterexamples)")
-	XstsLearningCheckerConfig.ClockPrec learningClockPrec = XstsLearningCheckerConfig.ClockPrec.ALL;
+	XstsLearningCheckerConfigFactory.ClockPrec learningClockPrec = XstsLearningCheckerConfigFactory.ClockPrec.ALL;
 
 	@Parameter(names = {"--learning-metrics"}, description = "Print metrics about the learning algorithm without running it")
 	boolean learningMetrics = false;

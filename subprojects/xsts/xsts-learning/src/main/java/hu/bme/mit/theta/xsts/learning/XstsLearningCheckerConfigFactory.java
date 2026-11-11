@@ -86,6 +86,10 @@ public class XstsLearningCheckerConfigFactory {
         CTRL
     }
 
+    public enum ClockPrec {
+        ALL, REFINED
+    }
+
     private static final int DEFAULT_MAX_LEARNING_ITERATIONS = 50;
     private static final int DEFAULT_MAX_OUTER_ITERATIONS = 50;
     private static final int DEFAULT_MAX_ENUM = 250;
@@ -103,7 +107,7 @@ public class XstsLearningCheckerConfigFactory {
     private XstsConfigBuilder.AutoExpl autoExpl = XstsConfigBuilder.AutoExpl.NEWOPERANDS;
     private int maxLearningIterations = DEFAULT_MAX_LEARNING_ITERATIONS;
     private int maxOuterIterations = DEFAULT_MAX_OUTER_ITERATIONS;
-    private XstsLearningCheckerConfig.ClockPrec clockPrec = XstsLearningCheckerConfig.ClockPrec.ALL;
+    private ClockPrec clockPrec = ClockPrec.ALL;
     private int maxEnum = DEFAULT_MAX_ENUM;
     private Logger logger = NullLogger.getInstance();
 
@@ -178,7 +182,7 @@ public class XstsLearningCheckerConfigFactory {
         return this;
     }
 
-    public XstsLearningCheckerConfigFactory clockPrec(final XstsLearningCheckerConfig.ClockPrec clockPrec) {
+    public XstsLearningCheckerConfigFactory clockPrec(final ClockPrec clockPrec) {
         this.clockPrec = checkNotNull(clockPrec);
         return this;
     }
