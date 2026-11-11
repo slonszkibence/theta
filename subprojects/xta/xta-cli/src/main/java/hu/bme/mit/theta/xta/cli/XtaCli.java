@@ -147,8 +147,8 @@ public final class XtaCli {
 	@Parameter(names = "--learning-prunestrategy", description = "Strategy for pruning the composition ARG after refinement")
 	PruneStrategy learningPruneStrategy = PruneStrategy.FULL;
 
-	@Parameter(names = "--learning-clockprec", description = "Clocks and process locations tracked by the learned timing (ALL, or LAZY: grown from spurious counterexamples)")
-	XtaLearningCheckerConfig.ClockPrec learningClockPrec = XtaLearningCheckerConfig.ClockPrec.ALL;
+	@Parameter(names = "--learning-clockprec", description = "Clocks and process locations tracked by the learned timing (ALL, or REFINED: grown from spurious counterexamples)")
+	XtaLearningCheckerConfigFactory.ClockPrec learningClockPrec = XtaLearningCheckerConfigFactory.ClockPrec.ALL;
 	/// Common algorithm parameters
 
 	@Parameter(names = {"--clock", "-c"}, description = "Refinement strategy for clock variables", required = false)

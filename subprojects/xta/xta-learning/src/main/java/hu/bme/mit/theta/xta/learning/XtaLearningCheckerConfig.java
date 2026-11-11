@@ -67,10 +67,10 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
     private final InclusionSearchStrategy inclusionSearchStrategy;
     private final int maxLearningIterations;
     private final int maxOuterIterations;
-    private final ClockPrec clockPrec;
+    private final XtaLearningCheckerConfigFactory.ClockPrec clockPrec;
     private final Logger logger;
 
-    public enum ClockPrec { ALL, LAZY }
+
 
     private record CheckContext<D extends State, P extends Prec>(
             Alphabet<String> alphabet,
@@ -118,7 +118,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             InclusionSearchStrategy inclusionSearchStrategy,
             int maxLearningIterations,
             int maxOuterIterations,
-            ClockPrec clockPrec,
+            XtaLearningCheckerConfigFactory.ClockPrec clockPrec,
             Logger logger
     ) {
         checkArgument(maxLearningIterations > 0, "maxLearningIterations must be positive");
@@ -166,7 +166,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             InclusionSearchStrategy inclusionSearchStrategy,
             int maxLearningIterations,
             int maxOuterIterations,
-            ClockPrec clockPrec,
+            XtaLearningCheckerConfigFactory.ClockPrec clockPrec,
             Logger logger
     ) {
         return new XtaLearningCheckerConfig<>(
@@ -187,7 +187,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
         final long[] mqCounter = {0};
         final long[] sulCounter = {0};
         final long[] eqCounter = {0};
-        TimingPrec timingPrec = clockPrec == ClockPrec.ALL
+        TimingPrec timingPrec = clockPrec == XtaLearningCheckerConfigFactory.ClockPrec.ALL
                 ? TimingPrec.all(xtaSystem)
                 : TimingPrec.empty();
         CheckContext<D, P> ctx = buildContext(timingPrec, mqCounter, sulCounter, eqCounter);
@@ -503,7 +503,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
 
         final TimedStepper fullStepper;
         final XtaRealizabilityOracle realizabilityOracle;
-        if (clockPrec == ClockPrec.ALL) {
+        if (clockPrec == XtaLearningCheckerConfigFactory.ClockPrec.ALL) {
             fullStepper = stepper;
             realizabilityOracle = XtaRealizabilityOracle.create(mqOracle, logger);
         } else {

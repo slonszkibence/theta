@@ -76,6 +76,8 @@ public final class XtaLearningCheckerConfigFactory {
 
     public enum InitPrec { ALL_DATA, EMPTY }
 
+    public enum ClockPrec { ALL, REFINED }
+
     private static final int DEFAULT_MAX_ENUM = 250;
     private static final int DEFAULT_MAX_LEARNING_ITERATIONS = 10_000;
     private static final int DEFAULT_MAX_OUTER_ITERATIONS = 1_000;
@@ -88,7 +90,7 @@ public final class XtaLearningCheckerConfigFactory {
     private int maxEnum = DEFAULT_MAX_ENUM;
     private int maxLearningIterations = DEFAULT_MAX_LEARNING_ITERATIONS;
     private int maxOuterIterations = DEFAULT_MAX_OUTER_ITERATIONS;
-    private XtaLearningCheckerConfig.ClockPrec clockPrec = XtaLearningCheckerConfig.ClockPrec.ALL;
+    private ClockPrec clockPrec = ClockPrec.ALL;
     private XtaLearningCheckerConfig.InclusionSearchStrategy inclusionSearchStrategy =
             XtaLearningCheckerConfig.InclusionSearchStrategy.BFS;
     private LearningAlgorithmType learningAlgorithmType = LearningAlgorithmType.TTT;
@@ -158,8 +160,7 @@ public final class XtaLearningCheckerConfigFactory {
         return this;
     }
 
-    public XtaLearningCheckerConfigFactory clockPrec(
-            final XtaLearningCheckerConfig.ClockPrec clockPrec) {
+    public XtaLearningCheckerConfigFactory clockPrec(final ClockPrec clockPrec) {
         this.clockPrec = checkNotNull(clockPrec);
         return this;
     }
