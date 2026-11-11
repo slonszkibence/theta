@@ -30,8 +30,11 @@ public final class TimedStepper {
     private static final Config DISABLED = new Config(List.of(), null);
 
     private final ZoneSemantics semantics;
+    private final TimingPrec prec;
+    private final boolean[] trackedProcess;
     private final Map<Loc, Integer> locToIndex = new LinkedHashMap<>();
     private final Map<Edge, EdgeClock> edgeClocks = new HashMap<>();
+    private final Map<Loc, List<ClockConstr>> invariants = new HashMap<>();
 
     private final Map<String, List<EdgeClock>> symbolToProjection = new LinkedHashMap<>();
     private final Map<String, Integer> symbolIndex = new LinkedHashMap<>();
@@ -41,7 +44,7 @@ public final class TimedStepper {
     private final Map<Config, Config[]> succCache;
     private int maxCacheEntries = 1024;
 
-    private record EdgeClock(Loc source, Loc target, List<ClockConstr> guards,
+    private record EdgeClock(Loc source, Loc target, boolean tracked, List<ClockConstr> guards,
                              List<ClockOp> updates, String label) {}
 
     public static final class Config {
@@ -90,11 +93,15 @@ public final class TimedStepper {
         }
     }
 
-    private TimedStepper(final XtaSystem system, final ZoneSemantics semantics) {
+    private TimedStepper(final XtaSystem system, final ZoneSemantics semantics,
+                         final TimingPrec prec) {
         this.semantics = checkNotNull(semantics);
+        this.prec = checkNotNull(prec);
 
         final List<XtaProcess> processes = List.copyOf(system.getProcesses());
+        this.trackedProcess = new boolean[processes.size()];
         for (int i = 0; i < processes.size(); i++) {
+            trackedProcess[i] = prec.tracks(processes.get(i));
             for (final Loc loc : processes.get(i).getLocs()) {
                 locToIndex.put(loc, i);
             }
@@ -115,7 +122,19 @@ public final class TimedStepper {
     }
 
     public static TimedStepper of(final XtaSystem system, final ZoneSemantics semantics) {
-        return new TimedStepper(system, semantics);
+        return new TimedStepper(system, semantics, TimingPrec.all(system));
+    }
+
+    public static TimedStepper of(final XtaSystem system, final TimingPrec prec) {
+        return new TimedStepper(system, ZoneSemantics.of(system, prec), prec);
+    }
+
+    public ZoneSemantics semantics() {
+        return semantics;
+    }
+
+    public TimingPrec prec() {
+        return prec;
     }
 
     public Alphabet<String> alphabet() {
@@ -176,6 +195,9 @@ public final class TimedStepper {
 
     private Config compute(final Config from, final List<EdgeClock> projection) {
         for (final EdgeClock edge : projection) {
+            if (!edge.tracked()) {
+                continue;
+            }
             final Integer index = locToIndex.get(edge.source());
             if (index == null || !from.locs().get(index).equals(edge.source())) {
                 return null;
@@ -184,7 +206,9 @@ public final class TimedStepper {
 
         final List<Loc> nextLocs = new ArrayList<>(from.locs());
         for (final EdgeClock edge : projection) {
-            nextLocs.set(locToIndex.get(edge.source()), edge.target());
+            if (edge.tracked()) {
+                nextLocs.set(locToIndex.get(edge.source()), edge.target());
+            }
         }
 
         final ZoneState.Builder builder = from.zone().transform();
@@ -200,7 +224,7 @@ public final class TimedStepper {
             }
         }
         addInvariants(builder, nextLocs);
-        if (nextLocs.stream().allMatch(loc -> loc.getKind() == LocKind.NORMAL)) {
+        if (delayAllowed(nextLocs)) {
             builder.up();
         }
         if (semantics.normalize()) {
@@ -210,13 +234,24 @@ public final class TimedStepper {
     }
 
     private void addInvariants(final ZoneState.Builder builder, final List<Loc> locs) {
-        for (final Loc loc : locs) {
-            for (final Guard invariant : loc.getInvars()) {
-                if (invariant.isClockGuard()) {
-                    builder.and(invariant.asClockGuard().getClockConstr());
-                }
+        for (int i = 0; i < locs.size(); i++) {
+            if (!trackedProcess[i]) {
+                continue;
+            }
+            for (final ClockConstr invariant : invariants.computeIfAbsent(locs.get(i),
+                    loc -> List.copyOf(ZoneSemantics.clockInvariantsOf(loc, prec)))) {
+                builder.and(invariant);
             }
         }
+    }
+
+    private boolean delayAllowed(final List<Loc> locs) {
+        for (int i = 0; i < locs.size(); i++) {
+            if (trackedProcess[i] && locs.get(i).getKind() != LocKind.NORMAL) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private List<EdgeClock> projectionOf(final List<Edge> edges) {
@@ -254,7 +289,7 @@ public final class TimedStepper {
         final List<ClockConstr> guards = new ArrayList<>();
         for (final Guard guard : edge.getGuards()) {
             if (guard.isClockGuard()) {
-                guards.add(guard.asClockGuard().getClockConstr());
+                prec.restrict(guard.asClockGuard().getClockConstr()).ifPresent(guards::add);
             }
         }
         guards.sort((left, right) -> left.toString().compareTo(right.toString()));
@@ -262,13 +297,16 @@ public final class TimedStepper {
         final List<ClockOp> updates = new ArrayList<>();
         for (final Update update : edge.getUpdates()) {
             if (update.isClockUpdate()) {
-                updates.add(update.asClockUpdate().getClockOp());
+                prec.restrict(update.asClockUpdate().getClockOp()).ifPresent(updates::add);
             }
         }
 
-        final String label = edge.getSource().getName() + "->" + edge.getTarget().getName()
-                + "g" + guards + "u" + updates;
-        cached = new EdgeClock(edge.getSource(), edge.getTarget(), List.copyOf(guards),
+        final boolean tracked = trackedProcess[locToIndex.get(edge.getSource())];
+        final String locations = tracked
+                ? edge.getSource().getName() + "->" + edge.getTarget().getName()
+                : "";
+        final String label = locations + "g" + guards + "u" + updates;
+        cached = new EdgeClock(edge.getSource(), edge.getTarget(), tracked, List.copyOf(guards),
                 List.copyOf(updates), label);
         edgeClocks.put(edge, cached);
         return cached;

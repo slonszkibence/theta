@@ -17,6 +17,8 @@ import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmFactory;
 import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
 import hu.bme.mit.theta.analysis.algorithm.SearchStrategy;
 import hu.bme.mit.theta.xta.learning.compositional.common.TimedStepper;
+import hu.bme.mit.theta.xta.learning.compositional.common.TimingPrec;
+import hu.bme.mit.theta.xta.learning.compositional.common.TimingPrecRefiner;
 import hu.bme.mit.theta.xta.learning.compositional.common.ProductAutomatonBuilder;
 import hu.bme.mit.theta.xta.learning.compositional.common.ZoneSemantics;
 import hu.bme.mit.theta.xta.learning.compositional.inclusion.XtaInclusionOracle;
@@ -65,12 +67,16 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
     private final InclusionSearchStrategy inclusionSearchStrategy;
     private final int maxLearningIterations;
     private final int maxOuterIterations;
+    private final ClockPrec clockPrec;
     private final Logger logger;
+
+    public enum ClockPrec { ALL, LAZY }
 
     private record CheckContext<D extends State, P extends Prec>(
             Alphabet<String> alphabet,
             ZoneSemantics semantics,
             TimedStepper stepper,
+            TimedStepper fullStepper,
             MembershipOracle.DFAMembershipOracle<String> mqOracle,
             EquivalenceOracle<DFA<?, String>, String, Boolean> eqOracle,
             XtaRealizabilityOracle realizabilityOracle,
@@ -89,6 +95,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
         private long refinerMs;
         private long realizabilityMs;
         private int cegarIterations;
+        private int timingRefinements;
     }
 
     private record ModelCheckPhaseResult<D extends State>(
@@ -111,12 +118,14 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             InclusionSearchStrategy inclusionSearchStrategy,
             int maxLearningIterations,
             int maxOuterIterations,
+            ClockPrec clockPrec,
             Logger logger
     ) {
         checkArgument(maxLearningIterations > 0, "maxLearningIterations must be positive");
         checkArgument(maxOuterIterations > 0, "maxOuterIterations must be positive");
         this.maxLearningIterations = maxLearningIterations;
         this.maxOuterIterations = maxOuterIterations;
+        this.clockPrec = checkNotNull(clockPrec);
         this.inclusionSearchStrategy = checkNotNull(inclusionSearchStrategy);
         this.xtaSystem = checkNotNull(xtaSystem);
         this.learningAlgorithmType = checkNotNull(learningAlgorithmType);
@@ -157,6 +166,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             InclusionSearchStrategy inclusionSearchStrategy,
             int maxLearningIterations,
             int maxOuterIterations,
+            ClockPrec clockPrec,
             Logger logger
     ) {
         return new XtaLearningCheckerConfig<>(
@@ -164,7 +174,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                 modelCheckingStrategy, searchStrategy,
                 xtaAnalysis, dataTransFunc, initialPrec, dataOrd,
                 inclusionSearchStrategy, maxLearningIterations, maxOuterIterations,
-                logger);
+                clockPrec, logger);
     }
 
     public SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> check() {
@@ -174,8 +184,15 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
     public CheckResult<D> checkWithStats() {
         final long startTime = System.currentTimeMillis();
         final Timings timings = new Timings();
-        CheckContext<D, P> ctx = buildContext();
+        final long[] mqCounter = {0};
+        final long[] sulCounter = {0};
+        final long[] eqCounter = {0};
+        TimingPrec timingPrec = clockPrec == ClockPrec.ALL
+                ? TimingPrec.all(xtaSystem)
+                : TimingPrec.empty();
+        CheckContext<D, P> ctx = buildContext(timingPrec, mqCounter, sulCounter, eqCounter);
         timings.setupMs = System.currentTimeMillis() - startTime;
+        logTimingPrec(timingPrec);
 
         logger.write(Logger.Level.INFO,
                 "[Learning] Starting with a lazily discovered alphabet, algorithm: %s%n",
@@ -257,7 +274,11 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                     "  [Counterexample] Length: %d, checking realizability...%n", cexWord.size());
 
             final long realizabilityStart = System.currentTimeMillis();
-            final boolean realizable = ctx.realizabilityOracle().isRealizable(cexWord);
+            for (final XtaAction action : cexTrace.getActions()) {
+                ctx.fullStepper().register(action);
+            }
+            final boolean realizable = ctx.realizabilityOracle().isRealizable(
+                    extractWord(cexTrace, ctx.fullStepper()));
             timings.realizabilityMs += System.currentTimeMillis() - realizabilityStart;
             if (realizable) {
                 logger.write(Logger.Level.RESULT,
@@ -267,6 +288,22 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                 return finish(ctx, mcr.safetyResult(), timings, lastHypothesisStates,
                         lastProductDfaStates, sigma.size(), totalRefinements, outerIteration,
                         startTime);
+            }
+
+            if (ctx.fullStepper() != ctx.stepper() && isMember(ctx, cexWord)) {
+                final List<XtaAction> actions = cexTrace.getActions();
+                timingPrec = TimingPrecRefiner.refine(xtaSystem, actions, timingPrec);
+                timings.timingRefinements++;
+                logTimingPrec(timingPrec);
+                ctx = buildContext(timingPrec, mqCounter, sulCounter, eqCounter);
+                for (final XtaAction action : actions) {
+                    ctx.stepper().register(action);
+                }
+                sigma = snapshot(ctx.stepper());
+                cexWord = extractWord(cexTrace, ctx.stepper());
+                learner = LearningAlgorithmFactory.create(
+                        learningAlgorithmType, new GrowingMapAlphabet<>(sigma), ctx.mqOracle());
+                learner.startLearning();
             }
 
             if (learner == null) {
@@ -304,7 +341,8 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                 timings.cegarIterations, ctx.mqCounter()[0], ctx.sulCounter()[0],
                 ctx.eqCounter()[0], System.currentTimeMillis() - startTime, timings.setupMs,
                 timings.learningMs, timings.modelCheckingMs, timings.refinerMs,
-                timings.realizabilityMs);
+                timings.realizabilityMs, timings.timingRefinements,
+                ctx.stepper().prec().clocks().size(), ctx.stepper().prec().processes().size());
         logger.write(Logger.Level.RESULT, "%s", statistics);
         return new CheckResult<>(withStatistics(safetyResult, statistics), statistics);
     }
@@ -449,23 +487,31 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
         return new ModelCheckPhaseResult<>(result, compositionDfa.size());
     }
 
-    private CheckContext<D, P> buildContext() {
-        final ZoneSemantics semantics = ZoneSemantics.of(xtaSystem);
-        final TimedStepper stepper = TimedStepper.of(xtaSystem, semantics);
+    private CheckContext<D, P> buildContext(final TimingPrec timingPrec, final long[] mqCounter,
+                                            final long[] sulCounter, final long[] eqCounter) {
+        final TimedStepper stepper = TimedStepper.of(xtaSystem, timingPrec);
+        final ZoneSemantics semantics = stepper.semantics();
         final Alphabet<String> alphabet = stepper.alphabet();
         final SUL<String, Boolean> mappedSul = XtaTimedSul.create(stepper);
 
-        long[] mqCounter = {0};
-        long[] sulCounter = {0};
-        long[] eqCounter = {0};
         MembershipOracle.DFAMembershipOracle<String> mqOracle =
                 buildMqOracle(mappedSul, mqCounter, sulCounter);
 
         EquivalenceOracle<DFA<?, String>, String, Boolean> eqOracle =
                 XtaInclusionOracle.create(semantics, stepper, mqOracle,
                         inclusionSearchStrategy.strategy(), logger);
-        XtaRealizabilityOracle realizabilityOracle =
-                XtaRealizabilityOracle.create(mqOracle, logger);
+
+        final TimedStepper fullStepper;
+        final XtaRealizabilityOracle realizabilityOracle;
+        if (clockPrec == ClockPrec.ALL) {
+            fullStepper = stepper;
+            realizabilityOracle = XtaRealizabilityOracle.create(mqOracle, logger);
+        } else {
+            fullStepper = TimedStepper.of(xtaSystem, TimingPrec.all(xtaSystem));
+            realizabilityOracle = XtaRealizabilityOracle.create(
+                    buildMqOracle(XtaTimedSul.create(fullStepper), new long[]{0}, new long[]{0}),
+                    logger);
+        }
 
         logger.write(Logger.Level.INFO,
                 "[Context] Inclusion search: %s, initial delay: %s, zones: %s%n",
@@ -475,9 +521,22 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                         : "exact (diagonal constraints present)");
 
         return new CheckContext<>(
-                alphabet, semantics, stepper,
+                alphabet, semantics, stepper, fullStepper,
                 mqOracle, eqOracle, realizabilityOracle, xtaAnalysis,
                 mqCounter, sulCounter, eqCounter);
+    }
+
+    private void logTimingPrec(final TimingPrec timingPrec) {
+        logger.write(Logger.Level.MAINSTEP,
+                "[TimingPrec] %s: tracking %d of %d clock(s), the locations of %d of %d process(es)%n",
+                clockPrec, timingPrec.clocks().size(), xtaSystem.getClockVars().size(),
+                timingPrec.processes().size(), xtaSystem.getProcesses().size());
+    }
+
+    private static boolean isMember(final CheckContext<?, ?> ctx, final Word<String> word) {
+        final DefaultQuery<String, Boolean> query = new DefaultQuery<>(word);
+        ctx.mqOracle().processQuery(query);
+        return Boolean.TRUE.equals(query.getOutput());
     }
 
     private SafetyChecker<DiscreteCompositionState<D, FastDFAState>, XtaAction, P> buildChecker(

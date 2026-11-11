@@ -19,6 +19,9 @@ public final class LearningStatistics extends Statistics {
     private final long modelCheckingMs;
     private final long refinerMs;
     private final long realizabilityMs;
+    private final int timingRefinements;
+    private final int trackedClocks;
+    private final int trackedProcesses;
 
     public LearningStatistics(
             final int hypothesisStates,
@@ -35,7 +38,10 @@ public final class LearningStatistics extends Statistics {
             final long learningMs,
             final long modelCheckingMs,
             final long refinerMs,
-            final long realizabilityMs) {
+            final long realizabilityMs,
+            final int timingRefinements,
+            final int trackedClocks,
+            final int trackedProcesses) {
         this.hypothesisStates = hypothesisStates;
         this.productDfaStates = productDfaStates;
         this.alphabetSize = alphabetSize;
@@ -51,6 +57,9 @@ public final class LearningStatistics extends Statistics {
         this.modelCheckingMs = modelCheckingMs;
         this.refinerMs = refinerMs;
         this.realizabilityMs = realizabilityMs;
+        this.timingRefinements = timingRefinements;
+        this.trackedClocks = trackedClocks;
+        this.trackedProcesses = trackedProcesses;
 
         addStat("HypothesisStates", this::hypothesisStates);
         addStat("CompositionDfaStates", this::productDfaStates);
@@ -67,6 +76,9 @@ public final class LearningStatistics extends Statistics {
         addStat("ModelCheckingTimeMs", this::modelCheckingMs);
         addStat("RefinerTimeMs", this::refinerMs);
         addStat("RealizabilityTimeMs", this::realizabilityMs);
+        addStat("TimingRefinements", this::timingRefinements);
+        addStat("TrackedClocks", this::trackedClocks);
+        addStat("TrackedProcesses", this::trackedProcesses);
     }
 
     public int hypothesisStates() {
@@ -127,5 +139,17 @@ public final class LearningStatistics extends Statistics {
 
     public long realizabilityMs() {
         return realizabilityMs;
+    }
+
+    public int timingRefinements() {
+        return timingRefinements;
+    }
+
+    public int trackedClocks() {
+        return trackedClocks;
+    }
+
+    public int trackedProcesses() {
+        return trackedProcesses;
     }
 }
