@@ -19,14 +19,20 @@ public class TimedXstsActionProjections {
 
     private final Map<XstsAction, XstsAction> dataProjections;
     private final Map<XstsAction, XstsAction> clockProjections;
+    private final Set<VarDecl<ClockType>> trackedClocks;
 
-    private TimedXstsActionProjections() {
+    private TimedXstsActionProjections(final Set<VarDecl<ClockType>> trackedClocks) {
         dataProjections = new HashMap<>();
         clockProjections = new HashMap<>();
+        this.trackedClocks = trackedClocks;
     }
 
     public static TimedXstsActionProjections create() {
-        return new TimedXstsActionProjections();
+        return new TimedXstsActionProjections(null);
+    }
+
+    public static TimedXstsActionProjections create(Collection<VarDecl<ClockType>> trackedClocks) {
+        return new TimedXstsActionProjections(Set.copyOf(trackedClocks));
     }
 
     public XstsAction dataProjection(final XstsAction action) {
@@ -53,7 +59,7 @@ public class TimedXstsActionProjections {
         final Tuple2<List<Stmt>, Set<Stmt>> projections = Tuple2.of(dataStmts, clockStmts);
 
         for (final Stmt stmt : action.getStmts()) {
-            stmt.accept(new ProjectionVisitor(), projections);
+            stmt.accept(new ProjectionVisitor(trackedClocks), projections);
         }
 
         final XstsAction dataAction = XstsAction.create(projections.get1());
@@ -63,7 +69,21 @@ public class TimedXstsActionProjections {
         clockProjections.put(action, clockAction);
     }
 
+
+
     private static class ProjectionVisitor implements StmtVisitor<Tuple2<List<Stmt>, Set<Stmt>>, Void> {
+        private final Set<VarDecl<ClockType>> trackedClocks;
+
+        public ProjectionVisitor(final Set<VarDecl<ClockType>> trackedClocks) {
+            this.trackedClocks = trackedClocks;
+        }
+
+        private boolean tracks(final Collection<VarDecl<?>> clocks) {
+            if (trackedClocks == null) {
+                return true;
+            }
+            return trackedClocks.containsAll(clocks);
+        }
 
         @Override
         public Void visit(SkipStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
@@ -79,7 +99,9 @@ public class TimedXstsActionProjections {
                 if (clocksCnt == 0) {
                     addDataStmt(Assume(cond), projections);
                 } else if (clocksCnt == varsCnt) {
-                    addClockStmt(Assume(cond), projections);
+                    if (tracks(vars)) {
+                        addClockStmt(Assume(cond), projections);
+                    }
                 } else {
                     throw new AssertionError();
                 }
@@ -139,13 +161,17 @@ public class TimedXstsActionProjections {
 
         @Override
         public Void visit(DelayStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
-            addClockStmt(stmt, projections);
+            if (trackedClocks == null || !trackedClocks.isEmpty()) {
+                addClockStmt(stmt, projections);
+            }
             return null;
         }
 
         @Override
         public Void visit(ResetStmt stmt, Tuple2<List<Stmt>, Set<Stmt>> projections) {
-            addClockStmt(stmt, projections);
+            if (tracks(List.of(stmt.getClockDecl()))) {
+                addClockStmt(stmt, projections);
+            }
             return null;
         }
         

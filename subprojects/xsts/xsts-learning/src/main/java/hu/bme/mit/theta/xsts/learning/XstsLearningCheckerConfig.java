@@ -103,9 +103,14 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
     private final PartialOrd<S> dataOrd;
     private final int maxLearningIterations;
     private final int maxOuterIterations;
+    private final ClockPrec clockPrec;
     private final Logger logger;
 
     private CheckResult<S> lastResult;
+
+    public enum ClockPrec {
+        ALL, LAZY
+    }
 
     private XstsLearningCheckerConfig(
             final XSTS xsts,
@@ -119,6 +124,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
             final PartialOrd<S> dataOrd,
             final int maxLearningIterations,
             final int maxOuterIterations,
+            final ClockPrec clockPrec,
             final Logger logger
     ) {
         this.xsts = checkNotNull(xsts);
@@ -132,6 +138,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         this.dataOrd = checkNotNull(dataOrd);
         this.maxLearningIterations = maxLearningIterations;
         this.maxOuterIterations = maxOuterIterations;
+        this.clockPrec = checkNotNull(clockPrec);
         this.logger = checkNotNull(logger);
     }
 
@@ -147,12 +154,13 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
             final PartialOrd<S> dataOrd,
             final int maxLearningIterations,
             final int maxOuterIterations,
+            final ClockPrec clockPrec,
             final Logger logger
     ) {
         return new XstsLearningCheckerConfig<>(
                 xsts, solverFactory, learningAlgorithmType, modelCheckingStrategy, searchStrategy,
                 baseDataAnalysis, valExtractor, prec, dataOrd,
-                maxLearningIterations, maxOuterIterations, logger);
+                maxLearningIterations, maxOuterIterations, clockPrec, logger);
     }
 
     @Override
@@ -206,13 +214,22 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
     private CheckResult<S> runCheck(final P prec) {
         final long algorithmStart = System.currentTimeMillis();
         final long setupStart = algorithmStart;
-        final CheckContext<S, P> ctx = buildContext();
+        final long[] mqCounter = {0};
+        final long[] eqCounter = {0};
+        final List<VarDecl<ClockType>> clocks = allClocks();
+        Set<VarDecl<ClockType>> tracked =
+                clockPrec == ClockPrec.ALL ? new LinkedHashSet<>(clocks) : Set.of();
+        CheckContext<S, P> ctx = buildContext(clocks, tracked, mqCounter, eqCounter);
         final long setupMs = System.currentTimeMillis() - setupStart;
         final long[] learningMs = {0};
         final long[] modelCheckingMs = {0};
         final long[] realizabilityMs = {0};
+        int clockRefinements = 0;
 
-        final GrowingMapAlphabet<XstsAction> alphabet = new GrowingMapAlphabet<>();
+        logger.write(Logger.Level.MAINSTEP, "[ClockPrec] %s: tracking %d of %d clock(s)%n",
+                clockPrec, tracked.size(), clocks.size());
+
+        GrowingMapAlphabet<XstsAction> alphabet = new GrowingMapAlphabet<>();
         final Set<XstsAction> discovered = new LinkedHashSet<>();
         final XstsCompositionLts.UnknownSymbolHandler collector = discovered::add;
 
@@ -307,14 +324,19 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
                 return new CheckResult<>(withStats(result, stats), stats, hypothesis, alphabet);
             }
 
-            final Word<XstsAction> cexWord = extractWord(result.asUnsafe().getTrace(), ctx.projections());
+            final Trace<XstsCompositionState<S, FastDFAState>, XstsAction> trace =
+                    result.asUnsafe().getTrace();
+            final Word<XstsAction> fullWord = extractWord(trace, ctx.fullProjections());
+            final Word<XstsAction> cexWord = extractWord(trace, ctx.projections());
             logger.write(Logger.Level.MAINSTEP,
-                    "  [Counterexample] length %d, checking realizability...%n", cexWord.size());
+                    "  [Counterexample] length %d, checking realizability...%n", fullWord.size());
             logWord("  [Counterexample]", cexWord);
-            logTrace(result.asUnsafe().getTrace(), ctx.projections());
+            logTrace(trace, ctx.projections());
 
             final long realStart = System.currentTimeMillis();
-            final boolean realizable = ctx.realizabilityOracle().isRealizable(cexWord);
+            final boolean realizable = ctx.realizabilityOracle().isRealizable(fullWord);
+            final boolean feasibleOverTracked =
+                    !realizable && ctx.precFeasibility().runSulFeasibility(cexWord);
             realizabilityMs[0] += System.currentTimeMillis() - realStart;
             if (realizable) {
                 logger.write(Logger.Level.RESULT, "Result: UNSAFE (%d outer iterations)%n", outer);
@@ -323,6 +345,21 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
                         algorithmStart, setupMs, learningMs[0], modelCheckingMs[0],
                         realizabilityMs[0], ctx.eqCount(), totalCegarIterations, totalRefinerMs);
                 return new CheckResult<>(withStats(result, stats), stats, hypothesis, alphabet);
+            }
+
+            if (feasibleOverTracked) {
+                final Set<VarDecl<ClockType>> refined = ClockPrecRefiner.refine(fullWord, tracked);
+                clockRefinements++;
+                logger.write(Logger.Level.MAINSTEP,
+                        "  [ClockPrec] refinement #%d: spurious only over untracked clocks,"
+                                + " tracking %d -> %d of %d clock(s): %s%n",
+                        clockRefinements, tracked.size(), refined.size(), clocks.size(), refined);
+                tracked = refined;
+                ctx = buildContext(clocks, tracked, mqCounter, eqCounter);
+                alphabet = new GrowingMapAlphabet<>();
+                learner = null;
+                eqOracle = null;
+                continue;
             }
 
             logger.write(Logger.Level.MAINSTEP,
@@ -386,7 +423,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         if (!(learner instanceof SupportsGrowingAlphabet)) {
             throw new UnsupportedOperationException(
                     "A lazily grown alphabet needs a learner that implements SupportsGrowingAlphabet"
-                            + " (TTT and KV do); got " + learner.getClass().getSimpleName());
+                            + learner.getClass().getSimpleName());
         }
         final SupportsGrowingAlphabet<XstsAction> growing = (SupportsGrowingAlphabet<XstsAction>) learner;
         for (final XstsAction symbol : symbols) {
@@ -397,7 +434,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
     private EquivalenceOracle.DFAEquivalenceOracle<XstsAction> buildEqOracle(
             final CheckContext<S, P> ctx, final Alphabet<XstsAction> alphabet) {
         final ClockBoundsCollector.Result bounds =
-                ClockBoundsCollector.collect(ctx.clocks(), alphabet);
+                ClockBoundsCollector.collect(ctx.tracked(), alphabet);
         return TimedXstsInclusionOracle.create(bounds.ceilings(), ctx.mapper(), bounds.luBounds(),
                 ctx.mqOracle(), searchStrategy, logger);
     }
@@ -458,13 +495,15 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
 
     private record CheckContext<S extends ExprState, P extends Prec>(
             XstsRealizabilityOracle realizabilityOracle,
+            XstsRealizabilityOracle precFeasibility,
             InitFunc<XstsState<S>, P> innerInitFunc,
             TransFunc<XstsState<S>, XstsAction, P> innerTransFunc,
             ControlFlowSplitXstsLts<S> compositionInnerLts,
             TimedXstsActionProjections projections,
+            TimedXstsActionProjections fullProjections,
             XstsTimingMapper<XstsAction, Boolean, Boolean> mapper,
             TimedXstsMembershipOracle<XstsAction> mqOracle,
-            List<VarDecl<ClockType>> clocks,
+            Set<VarDecl<ClockType>> tracked,
             long[] mqCounter,
             long[] eqCounter
     ) {
@@ -477,7 +516,7 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         }
     }
 
-    private CheckContext<S, P> buildContext() {
+    private List<VarDecl<ClockType>> allClocks() {
         final List<VarDecl<ClockType>> clocks = xsts.getVars().stream()
                 .filter(v -> v.getType() instanceof ClockType)
                 .map(XstsLearningCheckerConfig::asClock)
@@ -485,16 +524,26 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         if (clocks.isEmpty()) {
             throw new IllegalArgumentException("The model has no clocks - nothing to learn");
         }
-        final ZonePrec zonePrec = ZonePrec.of(clocks);
-        final TimedXstsActionProjections projections = TimedXstsActionProjections.create();
+        return clocks;
+    }
+
+    private CheckContext<S, P> buildContext(final List<VarDecl<ClockType>> clocks,
+                                            final Set<VarDecl<ClockType>> tracked,
+                                            final long[] mqCounter, final long[] eqCounter) {
+        final boolean trackAll = tracked.containsAll(clocks);
+        final TimedXstsActionProjections fullProjections = TimedXstsActionProjections.create();
+        final TimedXstsActionProjections projections =
+                trackAll ? fullProjections : TimedXstsActionProjections.create(tracked);
+        final ZonePrec zonePrec = trackAll ? ZonePrec.of(clocks) : ZonePrec.of(tracked);
 
         final XstsTimingMapper<XstsAction, Boolean, Boolean> mapper =
                 XstsTimingMapper.identity(accepted -> accepted);
         final SUL<XstsAction, Boolean> sul =
                 new MappedSUL<>(mapper, TimedXstsSul.create(projections, zonePrec));
+        final SUL<XstsAction, Boolean> fullSul = trackAll
+                ? sul
+                : new MappedSUL<>(mapper, TimedXstsSul.create(fullProjections, ZonePrec.of(clocks)));
 
-        final long[] mqCounter = {0};
-        final long[] eqCounter = {0};
         final SUL<XstsAction, Boolean> countingSul = new SUL<>() {
             @Override
             public void pre() {
@@ -516,16 +565,18 @@ public class XstsLearningCheckerConfig<S extends ExprState, P extends Prec>
         final TimedXstsMembershipOracle<XstsAction> mqOracle =
                 TimedXstsMembershipOracle.create(countingSul);
         final XstsRealizabilityOracle realizabilityOracle =
+                XstsRealizabilityOracle.create(fullSul, logger);
+        final XstsRealizabilityOracle precFeasibility =
                 XstsRealizabilityOracle.create(sul, logger);
 
         final Analysis<XstsState<S>, XstsAction, P> xstsAnalysis =
-                XstsAnalysis.create(DataProjectedAnalysis.of(baseDataAnalysis, projections));
+                XstsAnalysis.create(DataProjectedAnalysis.of(baseDataAnalysis, fullProjections));
         final ControlFlowSplitXstsLts<S> compositionInnerLts = ControlFlowSplitXstsLts.create(
                 xsts, solverFactory.createSolver(), valExtractor);
 
-        return new CheckContext<>(realizabilityOracle, xstsAnalysis.getInitFunc(),
-                xstsAnalysis.getTransFunc(), compositionInnerLts, projections, mapper, mqOracle,
-                clocks, mqCounter, eqCounter);
+        return new CheckContext<>(realizabilityOracle, precFeasibility, xstsAnalysis.getInitFunc(),
+                xstsAnalysis.getTransFunc(), compositionInnerLts, projections, fullProjections,
+                mapper, mqOracle, tracked, mqCounter, eqCounter);
     }
 
 

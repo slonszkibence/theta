@@ -103,6 +103,7 @@ public class XstsLearningCheckerConfigFactory {
     private XstsConfigBuilder.AutoExpl autoExpl = XstsConfigBuilder.AutoExpl.NEWOPERANDS;
     private int maxLearningIterations = DEFAULT_MAX_LEARNING_ITERATIONS;
     private int maxOuterIterations = DEFAULT_MAX_OUTER_ITERATIONS;
+    private XstsLearningCheckerConfig.ClockPrec clockPrec = XstsLearningCheckerConfig.ClockPrec.ALL;
     private int maxEnum = DEFAULT_MAX_ENUM;
     private Logger logger = NullLogger.getInstance();
 
@@ -174,6 +175,11 @@ public class XstsLearningCheckerConfigFactory {
 
     public XstsLearningCheckerConfigFactory maxOuterIterations(final int maxOuterIterations) {
         this.maxOuterIterations = maxOuterIterations;
+        return this;
+    }
+
+    public XstsLearningCheckerConfigFactory clockPrec(final XstsLearningCheckerConfig.ClockPrec clockPrec) {
+        this.clockPrec = checkNotNull(clockPrec);
         return this;
     }
 
@@ -262,7 +268,7 @@ public class XstsLearningCheckerConfigFactory {
         return XstsLearningCheckerConfig.create(
                 xsts, solverFactory, learningAlgorithmType, modelCheckingStrategy, searchStrategy,
                 dataAnalysis, valExtractor, prec, dataOrd,
-                maxLearningIterations, maxOuterIterations, logger);
+                maxLearningIterations, maxOuterIterations, clockPrec, logger);
     }
 
     private TraceCheckerStrategy<ExplPrec, ItpRefutation> explTraceCheckerStrategy() {

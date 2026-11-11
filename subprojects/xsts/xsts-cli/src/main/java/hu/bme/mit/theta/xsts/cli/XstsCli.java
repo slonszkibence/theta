@@ -144,6 +144,9 @@ public class XstsCli {
 	@Parameter(names = {"--learningiterations"}, description = "Maximal number of learning iterations for the learning algorithm (0: unlimited)")
 	Integer maxLearningIterations = 0;
 
+	@Parameter(names = {"--learning-clockprec"}, description = "Clocks the learned timing language is built over: ALL clocks, or LAZY (start from none, add clocks from spurious counterexamples)")
+	XstsLearningCheckerConfig.ClockPrec learningClockPrec = XstsLearningCheckerConfig.ClockPrec.ALL;
+
 	@Parameter(names = {"--learning-metrics"}, description = "Print metrics about the learning algorithm without running it")
 	boolean learningMetrics = false;
 
@@ -303,6 +306,7 @@ public class XstsCli {
 				.maxEnum(maxEnum)
 				.maxOuterIterations(unlimitedIfZero(maxOuterIterations))
 				.maxLearningIterations(unlimitedIfZero(maxLearningIterations))
+				.clockPrec(learningClockPrec)
 				.logger(logger)
 				.build();
 		return learningConfig.asXstsConfig();

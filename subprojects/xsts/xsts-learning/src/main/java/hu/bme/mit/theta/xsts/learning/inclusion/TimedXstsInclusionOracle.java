@@ -199,7 +199,6 @@ public class TimedXstsInclusionOracle<I> implements EquivalenceOracle.DFAEquival
                 LearnLibAction<I> cached = actionBySymbol.get(symbol);
                 Collection<? extends ZoneDfaState<S>> succStates;
                 if (cached == null) {
-                    // nem elfogado celallapot: a pasztazas kihagyta, most kell kiszamolni
                     cached = LearnLibAction.create(symbol);
                     succStates = transFunc.getSuccStates(node.getState(), cached, prec);
                 } else {
