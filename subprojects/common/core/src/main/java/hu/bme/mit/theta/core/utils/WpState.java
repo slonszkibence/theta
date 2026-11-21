@@ -36,6 +36,11 @@ import hu.bme.mit.theta.core.stmt.StmtVisitor;
 import hu.bme.mit.theta.core.type.Expr;
 import hu.bme.mit.theta.core.type.Type;
 import hu.bme.mit.theta.core.type.booltype.BoolType;
+import hu.bme.mit.theta.core.type.booltype.SmartBoolExprs;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -123,6 +128,34 @@ public final class WpState {
 				.toString();
 	}
 
+	private static WpState sequence(
+			final SequenceStmt stmt,
+			final WpState state,
+			final StmtVisitor<WpState, WpState> visitor) {
+		WpState result = state;
+		final List<Stmt> stmts = stmt.getStmts();
+		for (int i = stmts.size() - 1; i >= 0; i--) {
+			result = stmts.get(i).accept(visitor, result);
+		}
+		return result;
+	}
+
+	/** Branches get distinct constants, so that a later havoc cannot reuse one of them. */
+	private static WpState nonDet(
+			final NonDetStmt stmt,
+			final WpState state,
+			final StmtVisitor<WpState, WpState> visitor,
+			final Function<List<Expr<BoolType>>, Expr<BoolType>> combine) {
+		final List<Expr<BoolType>> branches = new ArrayList<>();
+		int constCount = state.constCount;
+		for (final Stmt branch : stmt.getStmts()) {
+			final WpState result = branch.accept(visitor, new WpState(state.expr, constCount));
+			branches.add(result.expr);
+			constCount = result.constCount;
+		}
+		return new WpState(combine.apply(branches), constCount);
+	}
+
 	private static final class WpVisitor implements StmtVisitor<WpState, WpState> {
 
 		private WpVisitor() {
@@ -163,16 +196,12 @@ public final class WpState {
 
 		@Override
 		public WpState visit(final SequenceStmt stmt, WpState state) {
-			WpState res = state;
-			for (final Stmt subStmt : Lists.reverse(stmt.getStmts())) {
-				res = subStmt.accept(this, state);
-			}
-			return res;
+			return sequence(stmt, state, this);
 		}
 
 		@Override
-		public WpState visit(NonDetStmt stmt, WpState param) {
-			throw new UnsupportedOperationException();
+		public WpState visit(NonDetStmt stmt, WpState state) {
+			return nonDet(stmt, state, this, SmartBoolExprs::And);
 		}
 
 		@Override
