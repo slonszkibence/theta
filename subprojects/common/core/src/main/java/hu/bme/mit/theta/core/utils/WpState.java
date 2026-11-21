@@ -266,16 +266,12 @@ public final class WpState {
 
 		@Override
 		public WpState visit(final SequenceStmt stmt, WpState state) {
-			WpState res = state;
-			for (final Stmt subStmt : Lists.reverse(stmt.getStmts())) {
-				res = subStmt.accept(this, state);
-			}
-			return res;
+			return WpVisitor.getInstance().visit(stmt, state);
 		}
 
 		@Override
-		public WpState visit(NonDetStmt stmt, WpState param) {
-			throw new UnsupportedOperationException();
+		public WpState visit(NonDetStmt stmt, WpState state) {
+			return nonDet(stmt, state, this, SmartBoolExprs::Or);
 		}
 
 		@Override
