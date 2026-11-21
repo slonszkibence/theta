@@ -51,6 +51,16 @@ public class ArgCexCheckHandler<S extends State, A extends Action> {
 		}
 	}
 
+	/**
+	 * Like {@link #setCurrentArg(AbstractArg)}, but the abstract ARG, whose construction walks the
+	 * whole ARG, is only built if the check is enabled.
+	 */
+	public <P extends Prec> void setCurrentArg(ARG<S, A> arg, P prec) {
+		if (abstractArgStorage != null) {
+			abstractArgStorage.setCurrentArg(new AbstractArg<>(arg, prec));
+		}
+	}
+
 	public <P extends Prec> void checkAndStop(ARG<S, A> arg, P prec) {
 		if (abstractArgStorage != null && abstractArgStorage.check(arg, prec)) {
 			throw new NotSolvableException();

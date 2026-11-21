@@ -54,7 +54,8 @@ public class DiscreteCompositionCheckerFactory {
 
                 .projection(state -> List.of(
                         state.getDfaState(),
-                        state.getXtaState().getLocs()))
+                        state.getXtaState().getLocs(),
+                        state.getXtaState().getState()))
                 .build();
     }
 

@@ -65,6 +65,8 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
     private final TransFunc<D, ? super StmtAction, ? super P> dataTransFunc;
     private final PartialOrd<D> dataOrd;
     private final InclusionSearchStrategy inclusionSearchStrategy;
+    private final boolean inclusionSubsumption;
+    private final boolean atomBatching;
     private final int maxLearningIterations;
     private final int maxOuterIterations;
     private final XtaLearningCheckerConfigFactory.ClockPrec clockPrec;
@@ -116,6 +118,8 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             P initialPrec,
             PartialOrd<D> dataOrd,
             InclusionSearchStrategy inclusionSearchStrategy,
+            boolean inclusionSubsumption,
+            boolean atomBatching,
             int maxLearningIterations,
             int maxOuterIterations,
             XtaLearningCheckerConfigFactory.ClockPrec clockPrec,
@@ -127,6 +131,8 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
         this.maxOuterIterations = maxOuterIterations;
         this.clockPrec = checkNotNull(clockPrec);
         this.inclusionSearchStrategy = checkNotNull(inclusionSearchStrategy);
+        this.inclusionSubsumption = inclusionSubsumption;
+        this.atomBatching = atomBatching;
         this.xtaSystem = checkNotNull(xtaSystem);
         this.learningAlgorithmType = checkNotNull(learningAlgorithmType);
         this.modelCheckingStrategy = checkNotNull(modelCheckingStrategy);
@@ -164,6 +170,8 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
             P initialPrec,
             PartialOrd<D> dataOrd,
             InclusionSearchStrategy inclusionSearchStrategy,
+            boolean inclusionSubsumption,
+            boolean atomBatching,
             int maxLearningIterations,
             int maxOuterIterations,
             XtaLearningCheckerConfigFactory.ClockPrec clockPrec,
@@ -173,8 +181,8 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                 xtaSystem, learningAlgorithmType,
                 modelCheckingStrategy, searchStrategy,
                 xtaAnalysis, dataTransFunc, initialPrec, dataOrd,
-                inclusionSearchStrategy, maxLearningIterations, maxOuterIterations,
-                clockPrec, logger);
+                inclusionSearchStrategy, inclusionSubsumption, atomBatching, maxLearningIterations,
+                maxOuterIterations, clockPrec, logger);
     }
 
     public SafetyResult<DiscreteCompositionState<D, FastDFAState>, XtaAction> check() {
@@ -187,9 +195,11 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
         final long[] mqCounter = {0};
         final long[] sulCounter = {0};
         final long[] eqCounter = {0};
-        TimingPrec timingPrec = clockPrec == XtaLearningCheckerConfigFactory.ClockPrec.ALL
-                ? TimingPrec.all(xtaSystem)
-                : TimingPrec.empty();
+        TimingPrec timingPrec = switch (clockPrec) {
+            case ALL -> TimingPrec.all(xtaSystem);
+            case REFINED -> TimingPrec.empty();
+            case ATOMS -> TimingPrec.emptyAtoms();
+        };
         CheckContext<D, P> ctx = buildContext(timingPrec, mqCounter, sulCounter, eqCounter);
         timings.setupMs = System.currentTimeMillis() - startTime;
         logTimingPrec(timingPrec);
@@ -292,7 +302,9 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
 
             if (ctx.fullStepper() != ctx.stepper() && isMember(ctx, cexWord)) {
                 final List<XtaAction> actions = cexTrace.getActions();
-                timingPrec = TimingPrecRefiner.refine(xtaSystem, actions, timingPrec);
+                timingPrec = clockPrec == XtaLearningCheckerConfigFactory.ClockPrec.ATOMS
+                        ? TimingPrecRefiner.refineAtoms(xtaSystem, actions, timingPrec, atomBatching)
+                        : TimingPrecRefiner.refine(xtaSystem, actions, timingPrec);
                 timings.timingRefinements++;
                 logTimingPrec(timingPrec);
                 ctx = buildContext(timingPrec, mqCounter, sulCounter, eqCounter);
@@ -342,7 +354,8 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
                 ctx.eqCounter()[0], System.currentTimeMillis() - startTime, timings.setupMs,
                 timings.learningMs, timings.modelCheckingMs, timings.refinerMs,
                 timings.realizabilityMs, timings.timingRefinements,
-                ctx.stepper().prec().clocks().size(), ctx.stepper().prec().processes().size());
+                ctx.stepper().prec().clocks().size(), ctx.stepper().prec().processes().size(),
+                ctx.stepper().prec().atoms().size());
         logger.write(Logger.Level.RESULT, "%s", statistics);
         return new CheckResult<>(withStatistics(safetyResult, statistics), statistics);
     }
@@ -499,7 +512,7 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
 
         EquivalenceOracle<DFA<?, String>, String, Boolean> eqOracle =
                 XtaInclusionOracle.create(semantics, stepper, mqOracle,
-                        inclusionSearchStrategy.strategy(), logger);
+                        inclusionSearchStrategy.strategy(), inclusionSubsumption, logger);
 
         final TimedStepper fullStepper;
         final XtaRealizabilityOracle realizabilityOracle;
@@ -528,8 +541,10 @@ public class XtaLearningCheckerConfig<D extends State, P extends Prec> {
 
     private void logTimingPrec(final TimingPrec timingPrec) {
         logger.write(Logger.Level.MAINSTEP,
-                "[TimingPrec] %s: tracking %d of %d clock(s), the locations of %d of %d process(es)%n",
+                "[TimingPrec] %s: tracking %d of %d clock(s)%s, the locations of %d of %d process(es)%n",
                 clockPrec, timingPrec.clocks().size(), xtaSystem.getClockVars().size(),
+                timingPrec.isAtomLevel() ? " through " + timingPrec.atoms().size() + " atom(s) "
+                        + timingPrec.atoms().stream().map(Object::toString).sorted().toList() : "",
                 timingPrec.processes().size(), xtaSystem.getProcesses().size());
     }
 

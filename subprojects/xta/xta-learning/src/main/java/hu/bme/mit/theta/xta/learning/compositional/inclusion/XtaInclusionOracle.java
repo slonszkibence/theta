@@ -35,24 +35,27 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
     private final TimedStepper stepper;
     private final MembershipOracle.DFAMembershipOracle<String> mqOracle;
     private final SearchStrategy searchStrategy;
+    private final boolean subsumption;
     private final Logger logger;
 
     private XtaInclusionOracle(ZoneSemantics semantics,
                                TimedStepper stepper,
                                MembershipOracle.DFAMembershipOracle<String> mqOracle,
                                SearchStrategy searchStrategy,
+                               boolean subsumption,
                                Logger logger) {
         this.semantics = checkNotNull(semantics);
         this.stepper = checkNotNull(stepper);
         this.mqOracle = checkNotNull(mqOracle);
         this.searchStrategy = checkNotNull(searchStrategy);
+        this.subsumption = subsumption;
         this.logger = checkNotNull(logger);
     }
 
     public static XtaInclusionOracle create(ZoneSemantics semantics,
                                             TimedStepper stepper,
                                             MembershipOracle.DFAMembershipOracle<String> mqOracle) {
-        return new XtaInclusionOracle(semantics, stepper, mqOracle, SearchStrategy.BFS,
+        return new XtaInclusionOracle(semantics, stepper, mqOracle, SearchStrategy.BFS, false,
                 NullLogger.getInstance());
     }
 
@@ -61,7 +64,17 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
                                             MembershipOracle.DFAMembershipOracle<String> mqOracle,
                                             SearchStrategy searchStrategy,
                                             Logger logger) {
-        return new XtaInclusionOracle(semantics, stepper, mqOracle, searchStrategy, logger);
+        return new XtaInclusionOracle(semantics, stepper, mqOracle, searchStrategy, false, logger);
+    }
+
+    public static XtaInclusionOracle create(ZoneSemantics semantics,
+                                            TimedStepper stepper,
+                                            MembershipOracle.DFAMembershipOracle<String> mqOracle,
+                                            SearchStrategy searchStrategy,
+                                            boolean subsumption,
+                                            Logger logger) {
+        return new XtaInclusionOracle(semantics, stepper, mqOracle, searchStrategy, subsumption,
+                logger);
     }
 
     @Override
@@ -91,6 +104,7 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
 
         final Map<ZoneDfaState<S>, ArgNode<ZoneDfaState<S>, LearnLibAction<String>>> passed =
                 new HashMap<>();
+        final Map<List<Object>, List<ZoneState>> expandedZones = new HashMap<>();
         long startTime = System.currentTimeMillis();
         int nodeCount = 0;
 
@@ -156,6 +170,9 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
             if (node.isTarget()) {
                 return new DefaultQuery<>(extractWord(node), true);
             }
+            if (subsumption && isSubsumed(expandedZones, node.getState())) {
+                continue;
+            }
             passed.put(node.getState(), node);
 
             for (int i = 0; i < symbolCount; i++) {
@@ -200,6 +217,23 @@ public class XtaInclusionOracle implements EquivalenceOracle.DFAEquivalenceOracl
             }
         }
         return true;
+    }
+
+    private <S> boolean isSubsumed(final Map<List<Object>, List<ZoneState>> expandedZones,
+                                   final ZoneDfaState<S> state) {
+        final List<Object> key = List.of(state.getConfig().locs(), state.getDfaState());
+        final List<ZoneState> zones = expandedZones.computeIfAbsent(key, k -> new ArrayList<>());
+        final ZoneState zone = state.getConfig().zone();
+        for (final ZoneState other : zones) {
+            final boolean leq = semantics.luBounds() != null
+                    ? zone.isLeq(other, semantics.luBounds())
+                    : zone.isLeq(other);
+            if (leq) {
+                return true;
+            }
+        }
+        zones.add(zone);
+        return false;
     }
 
     private <S> Word<String> extractWord(ArgNode<ZoneDfaState<S>, LearnLibAction<String>> node) {

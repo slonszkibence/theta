@@ -147,8 +147,14 @@ public final class XtaCli {
 	@Parameter(names = "--learning-prunestrategy", description = "Strategy for pruning the composition ARG after refinement")
 	PruneStrategy learningPruneStrategy = PruneStrategy.FULL;
 
-	@Parameter(names = "--learning-clockprec", description = "Clocks and process locations tracked by the learned timing (ALL, or REFINED: grown from spurious counterexamples)")
+	@Parameter(names = "--learning-clockprec", description = "Clocks and process locations tracked by the learned timing (ALL; REFINED: whole clocks grown from spurious counterexamples; ATOMS: individual clock constraints grown the same way)")
 	XtaLearningCheckerConfigFactory.ClockPrec learningClockPrec = XtaLearningCheckerConfigFactory.ClockPrec.ALL;
+
+	@Parameter(names = "--learning-subsumption", description = "LU subsumption in the inclusion oracle (recommended with --learning-clockprec ATOMS)")
+	boolean learningSubsumption = false;
+
+	@Parameter(names = "--learning-atom-batching", description = "With --learning-clockprec ATOMS: a new upper bound on a clock brings every location invariant over that clock along")
+	boolean learningAtomBatching = false;
 	/// Common algorithm parameters
 
 	@Parameter(names = {"--clock", "-c"}, description = "Refinement strategy for clock variables", required = false)
@@ -273,6 +279,9 @@ public final class XtaCli {
 				.inclusionSearchStrategy(learningInclusionSearch)
 				.pruneStrategy(learningPruneStrategy)
 				.clockPrec(learningClockPrec)
+				.inclusionSubsumption(learningSubsumption)
+				.atomBatching(learningAtomBatching)
+				.logger(benchmarkMode ? NullLogger.getInstance() : new ConsoleLogger(logLevel))
 				.searchStrategy(DiscreteCompositionCheckerFactory.SearchStrategy
 						.valueOf(searchStrategy.name()))
 				.build();

@@ -23,7 +23,6 @@ import hu.bme.mit.theta.analysis.algorithm.ArgBuilder;
 import hu.bme.mit.theta.analysis.algorithm.ArgNode;
 import hu.bme.mit.theta.analysis.algorithm.cegar.abstractor.StopCriterion;
 import hu.bme.mit.theta.analysis.algorithm.cegar.abstractor.StopCriterions;
-import hu.bme.mit.theta.analysis.algorithm.runtimecheck.AbstractArg;
 import hu.bme.mit.theta.analysis.algorithm.runtimecheck.ArgCexCheckHandler;
 import hu.bme.mit.theta.analysis.reachedset.Partition;
 import hu.bme.mit.theta.analysis.waitlist.FifoWaitlist;
@@ -87,7 +86,7 @@ public final class BasicAbstractor<S extends State, A extends Action, P extends 
 		long startNodes = arg.getNodes().count();
 		long startIncompleteNodes = arg.getIncompleteNodes().count();
 
-		ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<S, A, P>(arg, prec));
+		ArgCexCheckHandler.instance.setCurrentArg(arg, prec);
 		logger.write(Level.INFO, "|  |  Starting ARG: %d nodes, %d incomplete, %d unsafe%n", arg.getNodes().count(),
 				arg.getIncompleteNodes().count(), arg.getUnsafeNodes().count());
 		logger.write(Level.SUBSTEP, "|  |  Building ARG...");
@@ -110,7 +109,7 @@ public final class BasicAbstractor<S extends State, A extends Action, P extends 
 					waitlist.addAll(newNodes);
 				}
 
-				ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<S, A, P>(arg, prec));
+				ArgCexCheckHandler.instance.setCurrentArg(arg, prec);
 				if (stopCriterion.canStop(arg, newNodes)) break;
 			}
 		}

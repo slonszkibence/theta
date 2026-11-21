@@ -22,6 +22,7 @@ public final class LearningStatistics extends Statistics {
     private final int timingRefinements;
     private final int trackedClocks;
     private final int trackedProcesses;
+    private final int trackedAtoms;
 
     public LearningStatistics(
             final int hypothesisStates,
@@ -41,7 +42,8 @@ public final class LearningStatistics extends Statistics {
             final long realizabilityMs,
             final int timingRefinements,
             final int trackedClocks,
-            final int trackedProcesses) {
+            final int trackedProcesses,
+            final int trackedAtoms) {
         this.hypothesisStates = hypothesisStates;
         this.productDfaStates = productDfaStates;
         this.alphabetSize = alphabetSize;
@@ -60,6 +62,7 @@ public final class LearningStatistics extends Statistics {
         this.timingRefinements = timingRefinements;
         this.trackedClocks = trackedClocks;
         this.trackedProcesses = trackedProcesses;
+        this.trackedAtoms = trackedAtoms;
 
         addStat("HypothesisStates", this::hypothesisStates);
         addStat("CompositionDfaStates", this::productDfaStates);
@@ -79,6 +82,7 @@ public final class LearningStatistics extends Statistics {
         addStat("TimingRefinements", this::timingRefinements);
         addStat("TrackedClocks", this::trackedClocks);
         addStat("TrackedProcesses", this::trackedProcesses);
+        addStat("TrackedAtoms", this::trackedAtoms);
     }
 
     public int hypothesisStates() {
@@ -151,5 +155,9 @@ public final class LearningStatistics extends Statistics {
 
     public int trackedProcesses() {
         return trackedProcesses;
+    }
+
+    public int trackedAtoms() {
+        return trackedAtoms;
     }
 }

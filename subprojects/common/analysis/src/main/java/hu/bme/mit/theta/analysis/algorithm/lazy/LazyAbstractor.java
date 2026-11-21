@@ -7,7 +7,6 @@ import hu.bme.mit.theta.analysis.algorithm.ArgNode;
 import hu.bme.mit.theta.analysis.algorithm.SearchStrategy;
 import hu.bme.mit.theta.analysis.algorithm.cegar.Abstractor;
 import hu.bme.mit.theta.analysis.algorithm.cegar.AbstractorResult;
-import hu.bme.mit.theta.analysis.algorithm.runtimecheck.AbstractArg;
 import hu.bme.mit.theta.analysis.algorithm.runtimecheck.ArgCexCheckHandler;
 import hu.bme.mit.theta.analysis.expr.ExprState;
 import hu.bme.mit.theta.analysis.reachedset.Partition;
@@ -65,7 +64,7 @@ public final class LazyAbstractor<SConcr extends State, SAbstr extends State, FS
             Stream<ArgNode<LazyState<FSConcr, FSAbstr>, A>> incompleteNodes = arg.getIncompleteNodes();
             waiting.addAll(incompleteNodes);
         }
-        ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<>(arg, prec));
+        ArgCexCheckHandler.instance.setCurrentArg(arg, prec);
         return new CheckMethod(arg, waiting, prec).run();
     }
 
@@ -104,7 +103,7 @@ public final class LazyAbstractor<SConcr extends State, SAbstr extends State, FS
                         return stop(AbstractorResult.unsafe());
                     }
                 }
-                ArgCexCheckHandler.instance.setCurrentArg(new AbstractArg<>(arg, prec));
+                ArgCexCheckHandler.instance.setCurrentArg(arg, prec);
             }
             return stop(AbstractorResult.safe());
         }

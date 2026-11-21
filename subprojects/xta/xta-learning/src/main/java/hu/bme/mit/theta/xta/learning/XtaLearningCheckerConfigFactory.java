@@ -76,7 +76,7 @@ public final class XtaLearningCheckerConfigFactory {
 
     public enum InitPrec { ALL_DATA, EMPTY }
 
-    public enum ClockPrec { ALL, REFINED }
+    public enum ClockPrec { ALL, REFINED, ATOMS }
 
     private static final int DEFAULT_MAX_ENUM = 250;
     private static final int DEFAULT_MAX_LEARNING_ITERATIONS = 10_000;
@@ -91,6 +91,8 @@ public final class XtaLearningCheckerConfigFactory {
     private int maxLearningIterations = DEFAULT_MAX_LEARNING_ITERATIONS;
     private int maxOuterIterations = DEFAULT_MAX_OUTER_ITERATIONS;
     private ClockPrec clockPrec = ClockPrec.ALL;
+    private boolean inclusionSubsumption = false;
+    private boolean atomBatching = false;
     private XtaLearningCheckerConfig.InclusionSearchStrategy inclusionSearchStrategy =
             XtaLearningCheckerConfig.InclusionSearchStrategy.BFS;
     private LearningAlgorithmType learningAlgorithmType = LearningAlgorithmType.TTT;
@@ -162,6 +164,16 @@ public final class XtaLearningCheckerConfigFactory {
 
     public XtaLearningCheckerConfigFactory clockPrec(final ClockPrec clockPrec) {
         this.clockPrec = checkNotNull(clockPrec);
+        return this;
+    }
+
+    public XtaLearningCheckerConfigFactory inclusionSubsumption(final boolean inclusionSubsumption) {
+        this.inclusionSubsumption = inclusionSubsumption;
+        return this;
+    }
+
+    public XtaLearningCheckerConfigFactory atomBatching(final boolean atomBatching) {
+        this.atomBatching = atomBatching;
         return this;
     }
 
@@ -268,6 +280,8 @@ public final class XtaLearningCheckerConfigFactory {
                 initialPrec,
                 dataOrd,
                 inclusionSearchStrategy,
+                inclusionSubsumption,
+                atomBatching,
                 maxLearningIterations,
                 maxOuterIterations,
                 clockPrec,
