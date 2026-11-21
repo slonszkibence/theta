@@ -55,7 +55,7 @@ public class TimedXstsActionProjections {
 
     private void createProjections(final XstsAction action) {
         final List<Stmt> dataStmts = new ArrayList<>();
-        final ArrayList<Stmt> clockStmts = new ArrayList<>();
+        final List<Stmt> clockStmts = new ArrayList<>();
         final Tuple2<List<Stmt>, List<Stmt>> projections = Tuple2.of(dataStmts, clockStmts);
 
         for (final Stmt stmt : action.getStmts()) {
