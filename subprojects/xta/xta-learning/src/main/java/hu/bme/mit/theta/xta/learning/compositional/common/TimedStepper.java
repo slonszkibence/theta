@@ -3,6 +3,7 @@ package hu.bme.mit.theta.xta.learning.compositional.common;
 import hu.bme.mit.theta.analysis.zone.ZoneState;
 import hu.bme.mit.theta.core.clock.constr.ClockConstr;
 import hu.bme.mit.theta.core.clock.op.ClockOp;
+import hu.bme.mit.theta.core.clock.op.ClockOps;
 import hu.bme.mit.theta.xta.Guard;
 import hu.bme.mit.theta.xta.Update;
 import hu.bme.mit.theta.xta.XtaProcess;
@@ -297,7 +298,7 @@ public final class TimedStepper {
         final List<ClockOp> updates = new ArrayList<>();
         for (final Update update : edge.getUpdates()) {
             if (update.isClockUpdate()) {
-                prec.restrict(update.asClockUpdate().getClockOp()).ifPresent(updates::add);
+                prec.restrict(ClockOps.fromStmt(update.asClockUpdate().toStmt())).ifPresent(updates::add);
             }
         }
 

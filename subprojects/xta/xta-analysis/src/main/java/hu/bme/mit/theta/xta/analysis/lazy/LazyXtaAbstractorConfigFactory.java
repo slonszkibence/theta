@@ -94,8 +94,7 @@ public final class LazyXtaAbstractorConfigFactory {
                     searchStrategy,
                     lazyStrategy,
                     lazyAnalysis,
-                    s -> ((XtaState) s).isError(),
-                    createConcrProd2Lens()
+                    s -> ((XtaState) s).isError()
             );
             return new LazyXtaAbstractorConfig<>(abstractor, prec);
         }
@@ -313,7 +312,7 @@ public final class LazyXtaAbstractorConfigFactory {
                 case LU:
                     final Lens<LazyState<XtaState<Prod2State<?, ZoneState>>, XtaState<Prod2State<?, LuZoneState>>>, LuZoneState>
                             lens = LazyXtaLensUtils.createAbstrClockLens();
-                    return new LuZoneStrategy2<>(lens);
+                    return new LuZoneStrategy2<>(lens, LazyXtaLensUtils.createConcrClockLens());
                 default:
                     throw new AssertionError();
             }

@@ -146,13 +146,12 @@ public class CombinedLazyCegarXtaCheckerConfigFactory {
         final var prec = createConcrPrec();
 
         final var cegarChecker = CegarChecker.create(
-            new LazyAbstractor<>(
+            new LazyAbstractor<Prod2State, Prod2State, XtaState<Prod2State>, XtaState<Prod2State>, XtaAction, Prod2Prec>(
                 forceCast(XtaLts.create(system)),
                 searchStrategy,
                 lazyStrategy,
                 lazyAnalysis,
-                XtaState::isError,
-                createConcrProd2Lens()
+                XtaState::isError
             ),
             SingleExprTraceRefiner.create(
                 new CombinedLazyCegarExprTraceChecker(
@@ -300,7 +299,7 @@ public class CombinedLazyCegarXtaCheckerConfigFactory {
             case LU -> {
                 final Lens<LazyState<XtaState<Prod2State<?, ZoneState>>, XtaState<Prod2State<?, LuZoneState>>>, LuZoneState>
                     lens = LazyXtaLensUtils.createAbstrClockLens();
-                yield new LuZoneStrategy2<>(lens);
+                yield new LuZoneStrategy2<>(lens, LazyXtaLensUtils.createConcrClockLens());
             }
         };
     }

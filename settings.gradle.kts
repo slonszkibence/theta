@@ -28,6 +28,7 @@ include(
     "xsts/xsts",
     "xsts/xsts-analysis",
     "xsts/xsts-cli",
+    "xsts/xsts-learning",
 
     "solver/solver",
     "solver/solver-z3",

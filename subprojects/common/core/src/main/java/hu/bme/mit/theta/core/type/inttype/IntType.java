@@ -124,6 +124,10 @@ public class IntType implements Additive<IntType>, Multiplicative<IntType>, Divi
 
 	@Override
 	public <TargetType extends Type> Expr<TargetType> Cast(final Expr<IntType> op, final TargetType type) {
+		if (type instanceof IntType) {
+			@SuppressWarnings("unchecked") final Expr<TargetType> result = (Expr<TargetType>) op;
+			return result;
+		}
 		if (type instanceof RatType) {
 			@SuppressWarnings("unchecked") final Expr<TargetType> result = (Expr<TargetType>) IntExprs.ToRat(op);
 			return result;

@@ -46,8 +46,8 @@ public final class SameAbstractionLazyStrategy<SAbstr extends State, S extends S
     }
 
     @Override
-    public boolean inconsistentState(SAbstr state) {
-        return concretizer.inconsistentConcrState(state);
+    public boolean inconsistentState(S state) {
+        return concretizer.inconsistentConcrState(lens.get(state));
     }
 
     @Override

@@ -44,8 +44,8 @@ public final class IdentityAbstractionLazyStrategy<SConcr extends State, S exten
     }
 
     @Override
-    public boolean inconsistentState(SConcr state) {
-        return concretizer.inconsistentConcrState(state);
+    public boolean inconsistentState(S state) {
+        return concretizer.inconsistentConcrState(lens.get(state));
     }
 
     @Override

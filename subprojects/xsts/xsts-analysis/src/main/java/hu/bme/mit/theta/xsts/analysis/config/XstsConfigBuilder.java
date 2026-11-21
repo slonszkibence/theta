@@ -80,6 +80,7 @@ import hu.bme.mit.theta.xsts.analysis.autoexpl.XstsAutoExpl;
 import hu.bme.mit.theta.xsts.analysis.autoexpl.XstsNewAtomsAutoExpl;
 import hu.bme.mit.theta.xsts.analysis.autoexpl.XstsNewOperandsAutoExpl;
 import hu.bme.mit.theta.xsts.analysis.autoexpl.XstsStaticAutoExpl;
+import hu.bme.mit.theta.xsts.analysis.timed.XstsClockReplacers;
 import hu.bme.mit.theta.xsts.analysis.initprec.XstsAllVarsInitPrec;
 import hu.bme.mit.theta.xsts.analysis.initprec.XstsCtrlInitPrec;
 import hu.bme.mit.theta.xsts.analysis.initprec.XstsEmptyInitPrec;
@@ -161,17 +162,30 @@ public class XstsConfigBuilder {
 		ON, OFF
 	}
 
-	private Logger logger = NullLogger.getInstance();
-	private final SolverFactory solverFactory;
-	private final Domain domain;
-	private final Refinement refinement;
-	private Search search = Search.BFS;
-	private PredSplit predSplit = PredSplit.WHOLE;
-	private int maxEnum = 0;
-	private InitPrec initPrec = InitPrec.EMPTY;
-	private PruneStrategy pruneStrategy = PruneStrategy.LAZY;
-	private OptimizeStmts optimizeStmts = OptimizeStmts.ON;
-	private AutoExpl autoExpl = AutoExpl.NEWOPERANDS;
+	public enum ClockReplacer {
+		NONE(XstsClockReplacers.None()),
+
+		INT(XstsClockReplacers.Int()),
+
+		RAT(XstsClockReplacers.Rat());
+
+		public final XstsClockReplacers.XstsClockReplacer clockReplacer;
+
+		private ClockReplacer(final XstsClockReplacers.XstsClockReplacer clockReplacer) { this.clockReplacer = clockReplacer; }
+	}
+
+	Logger logger = NullLogger.getInstance();
+	final SolverFactory solverFactory;
+	final Domain domain;
+	final Refinement refinement;
+	Search search = Search.BFS;
+	PredSplit predSplit = PredSplit.WHOLE;
+	int maxEnum = 0;
+	InitPrec initPrec = InitPrec.EMPTY;
+	PruneStrategy pruneStrategy = PruneStrategy.LAZY;
+	OptimizeStmts optimizeStmts = OptimizeStmts.ON;
+	AutoExpl autoExpl = AutoExpl.NEWOPERANDS;
+	ClockReplacer clockReplacer = ClockReplacer.NONE;
 
 	public XstsConfigBuilder(final Domain domain, final Refinement refinement, final SolverFactory solverFactory) {
 		this.domain = domain;
@@ -219,8 +233,16 @@ public class XstsConfigBuilder {
 		return this;
 	}
 
-	public XstsConfig<? extends State, ? extends Action, ? extends Prec> build(final XSTS xsts) {
+	public XstsConfigBuilder clockReplacer(final ClockReplacer clockReplacer) {
+		this.clockReplacer = clockReplacer;
+		return this;
+	}
+
+	public XstsConfig<? extends State, ? extends Action, ? extends Prec> build(XSTS xsts) {
 		final Solver abstractionSolver = solverFactory.createSolver();
+
+		xsts = clockReplacer.clockReplacer.apply(xsts);
+
 		final Expr<BoolType> negProp = Not(xsts.getProp());
 
 		if (domain == Domain.EXPL) {

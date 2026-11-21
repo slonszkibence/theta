@@ -45,6 +45,10 @@ public class ArgCexCheckHandler<S extends State, A extends Action> {
 		} else return true;
 	}
 
+	public boolean isEnabled() {
+		return abstractArgStorage != null;
+	}
+
 	public <P extends Prec> void setCurrentArg(AbstractArg<S, A, P> arg) {
 		if (abstractArgStorage != null) {
 			abstractArgStorage.setCurrentArg(arg);

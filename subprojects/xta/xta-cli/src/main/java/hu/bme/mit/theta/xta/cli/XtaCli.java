@@ -307,6 +307,9 @@ public final class XtaCli {
 	}
 
 	private void resultPrinter(final boolean isSafe, final boolean isUnsafe, final XtaSystem system) {
+		if (system.getPropertyKind() == XtaSystem.PropertyKind.NONE) {
+			return;
+		}
 		if (isSafe) {
 			switch (system.getPropertyKind()) {
 				case AG -> System.out.println("(SafetyResult Safe)");

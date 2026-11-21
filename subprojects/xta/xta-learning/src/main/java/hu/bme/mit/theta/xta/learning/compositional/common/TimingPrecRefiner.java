@@ -4,7 +4,7 @@ import hu.bme.mit.theta.core.clock.constr.AtomicConstr;
 import hu.bme.mit.theta.core.clock.constr.UnitLeqConstr;
 import hu.bme.mit.theta.core.clock.constr.UnitLtConstr;
 import hu.bme.mit.theta.core.decl.VarDecl;
-import hu.bme.mit.theta.core.type.rattype.RatType;
+import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.xta.Guard;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaProcess.Edge;
@@ -26,7 +26,7 @@ public final class TimingPrecRefiner {
     public static TimingPrec refine(final XtaSystem system, final List<XtaAction> actions,
                                     final TimingPrec tracked) {
         final Set<XtaProcess> processes = new LinkedHashSet<>(system.getProcesses());
-        final Set<VarDecl<RatType>> clocks = new LinkedHashSet<>(system.getClockVars());
+        final Set<VarDecl<ClockType>> clocks = new LinkedHashSet<>(system.getClockVars());
         checkState(!feasible(system, actions, TimingPrec.of(clocks, processes)),
                 "the counterexample is realizable, so it needs no timing refinement");
 
@@ -39,7 +39,7 @@ public final class TimingPrecRefiner {
                 processes.add(process);
             }
         }
-        for (final VarDecl<RatType> clock : List.copyOf(clocks)) {
+        for (final VarDecl<ClockType> clock : List.copyOf(clocks)) {
             if (tracked.clocks().contains(clock)) {
                 continue;
             }

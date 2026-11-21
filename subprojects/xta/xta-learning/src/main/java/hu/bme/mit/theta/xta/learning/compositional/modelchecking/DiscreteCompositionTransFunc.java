@@ -7,9 +7,11 @@ import hu.bme.mit.theta.analysis.expr.StmtAction;
 import hu.bme.mit.theta.core.decl.VarDecl;
 import hu.bme.mit.theta.core.stmt.AssignStmt;
 import hu.bme.mit.theta.core.stmt.AssumeStmt;
+import hu.bme.mit.theta.core.stmt.DelayStmt;
 import hu.bme.mit.theta.core.stmt.HavocStmt;
+import hu.bme.mit.theta.core.stmt.ResetStmt;
 import hu.bme.mit.theta.core.stmt.Stmt;
-import hu.bme.mit.theta.core.type.rattype.RatType;
+import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.core.utils.ExprUtils;
 import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.XtaState;
@@ -133,6 +135,9 @@ public class DiscreteCompositionTransFunc<S extends State, prodS, P extends Prec
     }
 
     private static boolean isDataRelevant(final Stmt stmt) {
+        if (stmt instanceof ResetStmt || stmt instanceof DelayStmt) {
+            return false;
+        }
         if (stmt instanceof AssumeStmt) {
             return !mentionsClock(ExprUtils.getVars(((AssumeStmt) stmt).getCond()));
         }
@@ -155,7 +160,7 @@ public class DiscreteCompositionTransFunc<S extends State, prodS, P extends Prec
     }
 
     private static boolean isClock(final VarDecl<?> var) {
-        return var.getType() instanceof RatType;
+        return var.getType() instanceof ClockType;
     }
 
     private static final class DataAction extends StmtAction {

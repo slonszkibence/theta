@@ -27,13 +27,12 @@ import hu.bme.mit.theta.core.type.Type;
 import hu.bme.mit.theta.core.type.arraytype.ArrayType;
 import hu.bme.mit.theta.core.type.booltype.BoolType;
 import hu.bme.mit.theta.core.type.inttype.IntType;
-import hu.bme.mit.theta.core.type.rattype.RatType;
+import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.core.utils.TypeUtils;
 import hu.bme.mit.theta.xta.Label;
 import hu.bme.mit.theta.xta.dsl.gen.XtaDslParser.TypeContext;
 import hu.bme.mit.theta.xta.dsl.gen.XtaDslParser.VariableIdContext;
 import hu.bme.mit.theta.xta.utils.ChanType;
-import hu.bme.mit.theta.xta.utils.ClockType;
 import hu.bme.mit.theta.core.type.rangetype.RangeType;
 
 import java.util.List;
@@ -41,7 +40,7 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static hu.bme.mit.theta.core.type.inttype.IntExprs.Int;
-import static hu.bme.mit.theta.core.type.rattype.RatExprs.Rat;
+import static hu.bme.mit.theta.core.type.clocktype.ClockExprs.Clock;
 
 final class XtaVariableSymbol implements Symbol {
 
@@ -151,7 +150,7 @@ final class XtaVariableSymbol implements Symbol {
 			} else if (initialiser != null) {
 				throw new UnsupportedOperationException("Clock " + name + " should not be initialized.");
 			} else {
-				final VarDecl<RatType> varDecl = Decls.Var(prefix + name, Rat());
+				final VarDecl<ClockType> varDecl = Decls.Var(prefix + name, Clock());
 				return InstantiateResult.clockVariable(varDecl);
 			}
 		} else if (isChanArrayType(varType)) {
@@ -224,7 +223,7 @@ final class XtaVariableSymbol implements Symbol {
 			return new Constant(expr);
 		}
 
-		public static InstantiateResult clockVariable(final VarDecl<RatType> varDecl) {
+		public static InstantiateResult clockVariable(final VarDecl<ClockType> varDecl) {
 			return new ClockVariable(varDecl);
 		}
 
@@ -299,9 +298,9 @@ final class XtaVariableSymbol implements Symbol {
 	}
 
 	public static final class ClockVariable extends InstantiateResult{
-		private final VarDecl<RatType> varDecl;
+		private final VarDecl<ClockType> varDecl;
 
-		private ClockVariable(final VarDecl<RatType> varDecl) {
+		private ClockVariable(final VarDecl<ClockType> varDecl) {
 			this.varDecl = checkNotNull(varDecl);
 		}
 
@@ -315,7 +314,7 @@ final class XtaVariableSymbol implements Symbol {
 			return this;
 		}
 
-		public VarDecl<RatType> getVarDecl() {
+		public VarDecl<ClockType> getVarDecl() {
 			return varDecl;
 		}
 	}

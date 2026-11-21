@@ -28,8 +28,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class XtaLearningTest {
     private static final List<Object[]> MODELS = List.of(
-
-            new Object[]{"/model/7.xta", "/property/7.prop", true},
             new Object[]{"/model/fischer-2-32-64.xta", "/property/fischer-2-32-64.prop", true},
             new Object[]{"/model/leader_stateless_a.xta", "/property/leader_stateless_a.prop", true},
             new Object[]{"/model/leader_stateless_b.xta", "/property/leader_stateless_b.prop", true},

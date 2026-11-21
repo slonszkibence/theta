@@ -24,12 +24,14 @@ import static java.util.stream.Collectors.toList;
 public final class LuZoneStrategy2<S extends State> implements LazyStrategy<ZoneState, LuZoneState, S, XtaAction> {
 
     private final Lens<S, LuZoneState> lens;
+    private final Lens<S, ZoneState> concrLens;
     private final Function<S, ?> projection;
     private final InitAbstractor<ZoneState, LuZoneState> initAbstractor;
     private final PartialOrd<LuZoneState> partialOrd;
 
-    public LuZoneStrategy2(Lens<S, LuZoneState> lens) {
+    public LuZoneStrategy2(Lens<S, LuZoneState> lens, Lens<S, ZoneState> concrLens) {
         this.lens = checkNotNull(lens);
+        this.concrLens = checkNotNull(concrLens);
         projection = s -> unit();
         initAbstractor = s -> LuZoneState.of(s, BoundFunc.top());
         partialOrd = LuZoneOrd.getInstance();
@@ -51,8 +53,8 @@ public final class LuZoneStrategy2<S extends State> implements LazyStrategy<Zone
     }
 
     @Override
-    public boolean inconsistentState(ZoneState state) {
-        return state.isBottom();
+    public boolean inconsistentState(S state) {
+        return concrLens.get(state).isBottom();
     }
 
     @Override

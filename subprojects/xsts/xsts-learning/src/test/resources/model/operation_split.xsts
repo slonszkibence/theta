@@ -1,0 +1,19 @@
+var x : integer = 0
+var c : clock
+
+trans {
+    if (x == 0 && c < 5) {
+        x := x + 1;
+    } else {
+        c := 0;
+    }
+    __delay;
+}
+
+init {
+    __delay;
+}
+
+env {
+    __delay;
+}

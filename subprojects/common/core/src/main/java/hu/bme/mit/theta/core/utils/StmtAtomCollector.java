@@ -19,11 +19,13 @@ package hu.bme.mit.theta.core.utils;
 import hu.bme.mit.theta.common.container.Containers;
 import hu.bme.mit.theta.core.stmt.AssignStmt;
 import hu.bme.mit.theta.core.stmt.AssumeStmt;
+import hu.bme.mit.theta.core.stmt.DelayStmt;
 import hu.bme.mit.theta.core.stmt.HavocStmt;
 import hu.bme.mit.theta.core.stmt.IfStmt;
 import hu.bme.mit.theta.core.stmt.LoopStmt;
 import hu.bme.mit.theta.core.stmt.NonDetStmt;
 import hu.bme.mit.theta.core.stmt.OrtStmt;
+import hu.bme.mit.theta.core.stmt.ResetStmt;
 import hu.bme.mit.theta.core.stmt.SequenceStmt;
 import hu.bme.mit.theta.core.stmt.SkipStmt;
 import hu.bme.mit.theta.core.stmt.Stmt;
@@ -95,6 +97,16 @@ public class StmtAtomCollector {
 			stmt.getThen().accept(this, atoms);
 			stmt.getElze().accept(this, atoms);
 			atoms.addAll(ExprUtils.getAtoms(stmt.getCond()));
+			return null;
+		}
+
+		@Override
+		public Void visit(DelayStmt stmt, Set<Expr<BoolType>> atoms) {
+			return null;
+		}
+
+		@Override
+		public Void visit(ResetStmt stmt, Set<Expr<BoolType>> atoms) {
 			return null;
 		}
 	}

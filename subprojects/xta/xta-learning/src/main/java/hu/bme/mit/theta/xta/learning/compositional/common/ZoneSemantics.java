@@ -6,7 +6,7 @@ import hu.bme.mit.theta.core.clock.constr.AtomicConstr;
 import hu.bme.mit.theta.core.clock.constr.ClockConstr;
 import hu.bme.mit.theta.core.clock.constr.UnitConstr;
 import hu.bme.mit.theta.core.decl.VarDecl;
-import hu.bme.mit.theta.core.type.rattype.RatType;
+import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.xta.Guard;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 public record ZoneSemantics(
-        Map<VarDecl<RatType>, Integer> ceilings,
+        Map<VarDecl<ClockType>, Integer> ceilings,
         BoundFunc luBounds,
         boolean initialDelayAllowed,
         boolean normalize,
@@ -115,11 +115,11 @@ public record ZoneSemantics(
         return result;
     }
 
-    private static Map<VarDecl<RatType>, Integer> computeCeilings(final XtaSystem system,
+    private static Map<VarDecl<ClockType>, Integer> computeCeilings(final XtaSystem system,
                                                                   final TimingPrec prec,
                                                                   final List<ClockConstr> constrs) {
-        final Map<VarDecl<RatType>, Integer> ceilings = new HashMap<>();
-        for (final VarDecl<RatType> clock : system.getClockVars()) {
+        final Map<VarDecl<ClockType>, Integer> ceilings = new HashMap<>();
+        for (final VarDecl<ClockType> clock : system.getClockVars()) {
             if (prec.clocks().contains(clock)) {
                 ceilings.put(clock, 0);
             }
@@ -130,11 +130,11 @@ public record ZoneSemantics(
         return ceilings;
     }
 
-    private static void updateCeilings(final Map<VarDecl<RatType>, Integer> ceilings,
+    private static void updateCeilings(final Map<VarDecl<ClockType>, Integer> ceilings,
                                        final ClockConstr constr) {
         if (constr instanceof AtomicConstr atomic) {
             final int bound = atomic.getBound();
-            for (final VarDecl<RatType> variable : constr.getVars()) {
+            for (final VarDecl<ClockType> variable : constr.getVars()) {
                 ceilings.merge(variable, bound, Math::max);
             }
             return;

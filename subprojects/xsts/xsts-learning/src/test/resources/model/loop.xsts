@@ -1,0 +1,25 @@
+ctrl var loc : integer = 0
+var c : clock
+
+trans {
+    assume loc == 0;
+    c := 0;
+    loc := 1;
+    __delay;
+} or {
+    assume loc == 1;
+    assume c >= 2;
+    loc := 2;
+    __delay;
+} or {
+    assume loc == 1;
+    assume c < 2;
+    __delay;
+} or {
+    assume loc == 2;
+    __delay;
+}
+
+init {}
+
+env {}

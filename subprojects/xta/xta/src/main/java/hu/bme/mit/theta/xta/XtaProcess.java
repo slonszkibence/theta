@@ -24,7 +24,8 @@ import hu.bme.mit.theta.core.stmt.Stmt;
 import hu.bme.mit.theta.core.type.Expr;
 import hu.bme.mit.theta.core.type.booltype.BoolLitExpr;
 import hu.bme.mit.theta.core.type.booltype.BoolType;
-import hu.bme.mit.theta.core.type.rattype.RatType;
+import hu.bme.mit.theta.core.type.clocktype.ClockConstraintExpr;
+import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.core.utils.ExprUtils;
 import hu.bme.mit.theta.core.utils.StmtUtils;
 import hu.bme.mit.theta.xta.utils.MixedDataTimeNotSupportedException;
@@ -128,7 +129,7 @@ public final class XtaProcess {
     ////
 
     private Collection<Guard> createGuards(final Collection<Expr<BoolType>> exprs, Collection<VarDecl<?>> dataVars,
-                                           Collection<VarDecl<RatType>> clockVars) {
+                                           Collection<VarDecl<ClockType>> clockVars) {
         checkNotNull(exprs);
 
         final ImmutableList.Builder<Guard> builder = ImmutableList.builder();
@@ -151,7 +152,8 @@ public final class XtaProcess {
             if (dataExpr && !clockExpr) {
                 guard = Guard.dataGuard(expr);
             } else if (!dataExpr && clockExpr) {
-                guard = Guard.clockGuard(expr);
+                assert expr instanceof ClockConstraintExpr;
+                guard = Guard.clockGuard((ClockConstraintExpr) expr);
             } else {
                 throw new MixedDataTimeNotSupportedException(expr.toString());
             }
@@ -161,7 +163,7 @@ public final class XtaProcess {
     }
 
     private List<Update> createUpdates(final List<Stmt> stmts, Collection<VarDecl<?>> dataVars,
-                                       Collection<VarDecl<RatType>> clockVars) {
+                                       Collection<VarDecl<ClockType>> clockVars) {
         checkNotNull(stmts);
 
         final ImmutableList.Builder<Update> builder = ImmutableList.builder();

@@ -9,7 +9,7 @@ import hu.bme.mit.theta.core.clock.op.ClockOps;
 import hu.bme.mit.theta.core.clock.op.CopyOp;
 import hu.bme.mit.theta.core.clock.op.GuardOp;
 import hu.bme.mit.theta.core.decl.VarDecl;
-import hu.bme.mit.theta.core.type.rattype.RatType;
+import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.xta.XtaProcess;
 import hu.bme.mit.theta.xta.XtaSystem;
 
@@ -28,25 +28,25 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * constraints, in which case a clock counts as tracked if some tracked atom mentions it.
  */
 public final class TimingPrec {
-    private final Set<VarDecl<RatType>> clocks;
+    private final Set<VarDecl<ClockType>> clocks;
     private final Set<XtaProcess> processes;
     private final Set<AtomicConstr> atoms;
 
-    private TimingPrec(final Set<VarDecl<RatType>> clocks, final Set<XtaProcess> processes,
+    private TimingPrec(final Set<VarDecl<ClockType>> clocks, final Set<XtaProcess> processes,
                        final Set<AtomicConstr> atoms) {
         this.clocks = Set.copyOf(checkNotNull(clocks));
         this.processes = Set.copyOf(checkNotNull(processes));
         this.atoms = atoms == null ? null : Set.copyOf(atoms);
     }
 
-    public static TimingPrec of(final Set<VarDecl<RatType>> clocks,
+    public static TimingPrec of(final Set<VarDecl<ClockType>> clocks,
                                 final Set<XtaProcess> processes) {
         return new TimingPrec(clocks, processes, null);
     }
 
     public static TimingPrec ofAtoms(final Set<AtomicConstr> atoms,
                                      final Set<XtaProcess> processes) {
-        final Set<VarDecl<RatType>> clocks = new LinkedHashSet<>();
+        final Set<VarDecl<ClockType>> clocks = new LinkedHashSet<>();
         for (final AtomicConstr atom : atoms) {
             clocks.addAll(atom.getVars());
         }
@@ -66,7 +66,7 @@ public final class TimingPrec {
         return new TimingPrec(Set.of(), Set.of(), Set.of());
     }
 
-    public Set<VarDecl<RatType>> clocks() {
+    public Set<VarDecl<ClockType>> clocks() {
         return clocks;
     }
 

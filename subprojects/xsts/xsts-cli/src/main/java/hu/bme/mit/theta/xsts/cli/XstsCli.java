@@ -6,6 +6,7 @@ import com.beust.jcommander.ParameterException;
 import com.google.common.base.Stopwatch;
 import hu.bme.mit.theta.analysis.Trace;
 import hu.bme.mit.theta.analysis.algorithm.SafetyResult;
+import hu.bme.mit.theta.analysis.algorithm.SearchStrategy;
 import hu.bme.mit.theta.analysis.algorithm.cegar.CegarStatistics;
 import hu.bme.mit.theta.analysis.expr.refinement.PruneStrategy;
 import hu.bme.mit.theta.analysis.utils.ArgVisualizer;
@@ -18,6 +19,7 @@ import hu.bme.mit.theta.common.table.BasicTableWriter;
 import hu.bme.mit.theta.common.table.TableWriter;
 import hu.bme.mit.theta.common.visualization.Graph;
 import hu.bme.mit.theta.common.visualization.writer.GraphvizWriter;
+import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.solver.z3.Z3SolverFactory;
 import hu.bme.mit.theta.xsts.XSTS;
 import hu.bme.mit.theta.xsts.analysis.XstsAction;
@@ -27,20 +29,39 @@ import hu.bme.mit.theta.xsts.analysis.concretizer.XstsTraceConcretizerUtil;
 import hu.bme.mit.theta.xsts.analysis.config.XstsConfig;
 import hu.bme.mit.theta.xsts.analysis.config.XstsConfigBuilder;
 import hu.bme.mit.theta.xsts.analysis.config.XstsConfigBuilder.*;
+import hu.bme.mit.theta.xsts.analysis.config.TimedXstsConfigBuilder;
+import hu.bme.mit.theta.xsts.analysis.config.TimedXstsConfigBuilder.ControlFlowSplitting;
+import hu.bme.mit.theta.xsts.analysis.config.TimedXstsConfigBuilder.ZoneRefinement;
 import hu.bme.mit.theta.xsts.dsl.XstsDslManager;
+import hu.bme.mit.theta.xsts.learning.LearningStatistics;
+import hu.bme.mit.theta.xsts.learning.XstsLearningCheckerConfig;
+import hu.bme.mit.theta.xsts.learning.XstsLearningCheckerConfigFactory;
+import hu.bme.mit.theta.xsts.learning.learnalgo.LearningAlgorithmType;
+import hu.bme.mit.theta.xsts.learning.modelchecking.XstsCompositionTraces;
 import hu.bme.mit.theta.xsts.pnml.PnmlParser;
 import hu.bme.mit.theta.xsts.pnml.PnmlToXSTS;
 import hu.bme.mit.theta.xsts.pnml.elements.PnmlNet;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-public class XstsCli {
+import static com.google.common.base.Preconditions.checkArgument;
 
+public class XstsCli {
 	private static final String JAR_NAME = "theta-xsts-cli.jar";
 	private final String[] args;
 	private final TableWriter writer;
+
+	enum AlgorithmType {
+		CEGAR,
+		LEARNING
+	}
+
+	@Parameter(names = {"--algorithm"}, description = "Verification Algorithm type")
+	AlgorithmType algorithm = AlgorithmType.CEGAR;
+
 
 	@Parameter(names = {"--domain"}, description = "Abstract domain")
 	Domain domain = Domain.PRED_CART;
@@ -102,6 +123,39 @@ public class XstsCli {
 	@Parameter(names = {"--visualize"}, description = "Write proof or counterexample to file in dot format")
 	String dotfile = null;
 
+	@Parameter(names = {"--clockreplacement"}, description = "Clock replacement type")
+	ClockReplacer clockReplacer = ClockReplacer.NONE;
+
+	@Parameter(names = {"--controlflowsplitting"}, description = "Control flow splitting type")
+	ControlFlowSplitting controlFlowSplitting = ControlFlowSplitting.OFF;
+
+	@Parameter(names = {"--zonerefinement"}, description = "Refinement strategy for zone states")
+	ZoneRefinement zoneRefinement = ZoneRefinement.BW_ITP;
+
+	@Parameter(names = {"--learningalgorithm"}, description = "Learning algorithm type")
+	LearningAlgorithmType learningAlgorithmType = LearningAlgorithmType.TTT;
+
+	@Parameter(names = {"--learning-search"}, description = "Search strategy for the learning algorithm")
+	SearchStrategy learningSearchStrategy = SearchStrategy.BFS;
+
+	@Parameter(names = {"--maxouteriterations"}, description = "Maximal number of outer iterations for the learning algorithm (0: unlimited)")
+	Integer maxOuterIterations = 0;
+
+	@Parameter(names = {"--learningiterations"}, description = "Maximal number of learning iterations for the learning algorithm (0: unlimited)")
+	Integer maxLearningIterations = 0;
+
+	@Parameter(names = {"--learning-clockprec"}, description = "Clocks the learned timing language is built over: ALL clocks, or REFINED (start from none, add clocks from spurious counterexamples)")
+	XstsLearningCheckerConfigFactory.ClockPrec learningClockPrec = XstsLearningCheckerConfigFactory.ClockPrec.ALL;
+
+	@Parameter(names = {"--learning-metrics"}, description = "Print metrics about the learning algorithm without running it")
+	boolean learningMetrics = false;
+
+	@Parameter(names = {"--learning-visualize"}, description = "Directory to write the learning artifacts to in dot format: the TXSTS, the timeless XSTS, the hypothesis and the final ARG")
+	String learningDotDir = null;
+
+	private XstsLearningCheckerConfig<?, ?> learningConfig;
+
+
 	private Logger logger;
 
 	public XstsCli(final String[] args) {
@@ -154,6 +208,9 @@ public class XstsCli {
 			if (dotfile != null) {
 				writeVisualStatus(status, dotfile);
 			}
+			if (learningDotDir != null && learningConfig != null) {
+				learningConfig.writeArtifacts(Path.of(learningDotDir), baseNameOf(model));
+			}
 		} catch (final Throwable ex) {
 			printError(ex);
 			System.exit(1);
@@ -170,9 +227,20 @@ public class XstsCli {
 	}
 
 	private void printHeader() {
-		Stream.of("Result", "TimeMs", "AlgoTimeMs", "AbsTimeMs", "RefTimeMs", "Iterations",
-				"ArgSize", "ArgDepth", "ArgMeanBranchFactor", "CexLen", "Vars").forEach(writer::cell);
-		writer.newRow();
+		if (algorithm == AlgorithmType.CEGAR) {
+			Stream.of("Result", "TimeMs", "AlgoTimeMs", "AbsTimeMs", "RefTimeMs", "Iterations",
+					"ArgSize", "ArgDepth", "ArgMeanBranchFactor", "CexLen", "Vars").forEach(writer::cell);
+			writer.newRow();
+		}
+		if (algorithm == AlgorithmType.LEARNING) {
+			Stream.of("Result", "TimeMs", "AlgoTimeMs",
+							"SetupMs", "LearningMs", "ModelCheckMs", "RealizMs",
+							"OuterIters", "Refinements", "Alphabet", "HypStates", "ProdDfaStates",
+							"CegarIterations", "RefinerTimeMs", "MembQueries", "EquivalenceQueries",
+							"ArgSize", "ArgDepth", "ArgMeanBranchFactor", "CexLen", "Vars")
+					.forEach(writer::cell);
+			writer.newRow();
+		}
 	}
 
 	private XSTS loadModel() throws Exception {
@@ -200,33 +268,114 @@ public class XstsCli {
 
 	private XstsConfig<?, ?, ?> buildConfiguration(final XSTS xsts) throws Exception {
 		try {
-			return new XstsConfigBuilder(domain, refinement, Z3SolverFactory.getInstance())
+			if (algorithm == AlgorithmType.LEARNING) {
+				return buildLearningConfiguration(xsts);
+			}
+			XstsConfigBuilder xstsConfigBuilder = new XstsConfigBuilder(domain, refinement, Z3SolverFactory.getInstance())
 					.maxEnum(maxEnum).autoExpl(autoExpl).initPrec(initPrec).pruneStrategy(pruneStrategy)
-					.search(search).predSplit(predSplit).optimizeStmts(optimizeStmts).logger(logger).build(xsts);
+					.search(search).predSplit(predSplit).optimizeStmts(optimizeStmts).clockReplacer(clockReplacer)
+					.logger(logger);
+			final boolean timedXsts = clockReplacer == ClockReplacer.NONE &&
+					xsts.getVars().stream().anyMatch(varDecl -> varDecl.getType() instanceof ClockType);
+			if (timedXsts) {
+				return new TimedXstsConfigBuilder(xstsConfigBuilder)
+						.zoneRefinement(zoneRefinement).controlFlowSplitting(controlFlowSplitting)
+						.build(xsts);
+			} else {
+				return xstsConfigBuilder.build(xsts);
+			}
 		} catch (final Exception ex) {
 			throw new Exception("Could not create configuration: " + ex.getMessage(), ex);
 		}
 	}
 
+	private XstsConfig<?, ?, ?> buildLearningConfiguration(final XSTS xsts) {
+		checkArgument(clockReplacer == ClockReplacer.NONE,
+				"--algorithm LEARNING works on the clocks themselves: pass --clockreplacement NONE");
+		checkArgument(xsts.getVars().stream().anyMatch(v -> v.getType() instanceof ClockType),
+				"--algorithm LEARNING needs a model with clocks: this one has none");
+
+		learningConfig = XstsLearningCheckerConfigFactory
+				.create(xsts, Z3SolverFactory.getInstance(), domain)
+				.learningAlgorithmType(learningAlgorithmType)
+				.searchStrategy(learningSearchStrategy)
+				.refinement(XstsLearningCheckerConfigFactory.Refinement.valueOf(refinement.name()))
+				.autoExpl(autoExpl)
+				.predSplit(XstsLearningCheckerConfigFactory.PredSplit.valueOf(predSplit.name()))
+				.pruneStrategy(pruneStrategy)
+				.maxEnum(maxEnum)
+				.maxOuterIterations(unlimitedIfZero(maxOuterIterations))
+				.maxLearningIterations(unlimitedIfZero(maxLearningIterations))
+				.clockPrec(learningClockPrec)
+				.logger(logger)
+				.build();
+		return learningConfig.asXstsConfig();
+	}
+
+	private static String baseNameOf(final String modelPath) {
+		final String fileName = new File(modelPath).getName();
+		final int dot = fileName.lastIndexOf('.');
+		return dot < 0 ? fileName : fileName.substring(0, dot);
+	}
+
+	private static int unlimitedIfZero(final int limit) {
+		return limit == 0 ? Integer.MAX_VALUE : limit;
+	}
+
 	private void printResult(final SafetyResult<?, ?> status, final XSTS sts, final long totalTimeMs) {
-		final CegarStatistics stats = (CegarStatistics) status.getStats().get();
-		if (benchmarkMode) {
-			writer.cell(status.isSafe());
-			writer.cell(totalTimeMs);
-			writer.cell(stats.getAlgorithmTimeMs());
-			writer.cell(stats.getAbstractorTimeMs());
-			writer.cell(stats.getRefinerTimeMs());
-			writer.cell(stats.getIterations());
-			writer.cell(status.getArg().size());
-			writer.cell(status.getArg().getDepth());
-			writer.cell(status.getArg().getMeanBranchingFactor());
-			if (status.isUnsafe()) {
-				writer.cell(status.asUnsafe().getTrace().length() + "");
-			} else {
-				writer.cell("");
-			}
-			writer.cell(sts.getVars().size());
-			writer.newRow();
+		switch (algorithm) {
+			case CEGAR:
+				final CegarStatistics stats = (CegarStatistics) status.getStats().get();
+				if (benchmarkMode) {
+					writer.cell(status.isSafe());
+					writer.cell(totalTimeMs);
+					writer.cell(stats.getAlgorithmTimeMs());
+					writer.cell(stats.getAbstractorTimeMs());
+					writer.cell(stats.getRefinerTimeMs());
+					writer.cell(stats.getIterations());
+					writer.cell(status.getArg().size());
+					writer.cell(status.getArg().getDepth());
+					writer.cell(status.getArg().getMeanBranchingFactor());
+					if (status.isUnsafe()) {
+						writer.cell(status.asUnsafe().getTrace().length() + "");
+					} else {
+						writer.cell("");
+					}
+					writer.cell(sts.getVars().size());
+					writer.newRow();
+				}
+				break;
+			case LEARNING:
+				final LearningStatistics learningStats = (LearningStatistics) status.getStats().get();
+				if (benchmarkMode) {
+					writer.cell(status.isSafe());
+					writer.cell(totalTimeMs);
+					writer.cell(learningStats.getAlgorithmTimeMs());
+					writer.cell(learningStats.getSetupMs());
+					writer.cell(learningStats.getLearningTimeMs());
+					writer.cell(learningStats.getModelCheckingTimeMs());
+					writer.cell(learningStats.getRealizabilityTimeMs());
+					writer.cell(learningStats.getOuterIterations());
+					writer.cell(learningStats.getRefinements());
+					writer.cell(learningStats.getAlphabetSize());
+					writer.cell(learningStats.getHypothesisStates());
+					writer.cell(learningStats.getProductDfaStates());
+					writer.cell(learningStats.getIterations());
+					writer.cell(learningStats.getRefinerTimeMs());
+					writer.cell(learningStats.getMembershipQueries());
+					writer.cell(learningStats.getEquivalenceQueries());
+					writer.cell(status.getArg().size());
+					writer.cell(status.getArg().getDepth());
+					writer.cell(status.getArg().getMeanBranchingFactor());
+					if (status.isUnsafe()) {
+						writer.cell(status.asUnsafe().getTrace().length() + "");
+					} else {
+						writer.cell("");
+					}
+					writer.cell(sts.getVars().size());
+					writer.newRow();
+				}
+				break;
 		}
 	}
 
@@ -248,8 +397,9 @@ public class XstsCli {
 	}
 
 	private void writeCex(final SafetyResult.Unsafe<?, ?> status, final XSTS xsts) throws FileNotFoundException {
-
-		@SuppressWarnings("unchecked") final Trace<XstsState<?>, XstsAction> trace = (Trace<XstsState<?>, XstsAction>) status.getTrace();
+		@SuppressWarnings("unchecked") final Trace<XstsState<?>, XstsAction> trace =
+				XstsCompositionTraces.projectToData(status.getTrace())
+						.orElseGet(() -> (Trace<XstsState<?>, XstsAction>) status.getTrace());
 		final XstsStateSequence concrTrace = XstsTraceConcretizerUtil.concretize(trace, Z3SolverFactory.getInstance(), xsts);
 		final File file = new File(cexfile);
 		try (PrintWriter printWriter = new PrintWriter(file)) {
