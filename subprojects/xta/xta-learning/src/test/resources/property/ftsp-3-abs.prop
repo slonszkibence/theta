@@ -1,3 +1,0 @@
-prop{
-    A[] (counter == MAX_COUNT) imply (sp1_myroot == 1 && sp2_myroot == 1 && last_myroot == 1)
-}

@@ -1,3 +1,0 @@
-prop{
-    A[] not (p0_missed || p1_missed)
-}

@@ -39,12 +39,10 @@ include(
     "xta/xta",
     "xta/xta-analysis",
     "xta/xta-cli",
-    "xta/xta-learning",
 
     "xsts/xsts",
     "xsts/xsts-analysis",
     "xsts/xsts-cli",
-    "xsts/xsts-learning",
 
     "solver/solver",
     "solver/solver-z3",
