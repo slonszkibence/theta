@@ -22,7 +22,6 @@ plugins {
 dependencies {
     implementation(project(":theta-xsts"))
     implementation(project(":theta-xsts-analysis"))
-    implementation(project(":theta-xsts-learning"))
     implementation(project(":theta-analysis"))
     implementation(project(":theta-core"))
     implementation(project(":theta-common"))

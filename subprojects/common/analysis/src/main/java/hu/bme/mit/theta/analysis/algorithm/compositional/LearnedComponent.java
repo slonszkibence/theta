@@ -13,9 +13,23 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+package hu.bme.mit.theta.analysis.algorithm.compositional;
 
-package hu.bme.mit.theta.analysis.algorithm.compositional.learning;
+import hu.bme.mit.theta.analysis.dfa.ActionToSymbol;
 
-public enum LearningAlgorithmType {
-  LSTAR, KV, TTT
+import java.util.List;
+import java.util.Map;
+
+import de.learnlib.oracle.EquivalenceOracle;
+import de.learnlib.oracle.MembershipOracle;
+
+public interface LearnedComponent<A, I> {
+
+    ActionToSymbol<A, I> getActionToSymbol();
+
+    MembershipOracle.DFAMembershipOracle<I> getMembershipOracle();
+
+    EquivalenceOracle.DFAEquivalenceOracle<I> getEquivalenceOracle();
+
+    CexStatus<A, I> checkCex(List<A> cexActions);
 }

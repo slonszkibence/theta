@@ -24,5 +24,7 @@ dependencies {
     implementation(project(":theta-core"))
     implementation(project(":theta-solver"))
     implementation(project(":theta-xsts"))
+    implementation("de.learnlib.distribution:learnlib-distribution:0.18.0")
+    implementation("net.automatalib.distribution:automata-distribution:0.12.0")
     testImplementation(project(":theta-solver-z3"))
 }

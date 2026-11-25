@@ -45,14 +45,12 @@ import hu.bme.mit.theta.common.visualization.Graph;
 import hu.bme.mit.theta.common.visualization.writer.GraphvizWriter;
 import hu.bme.mit.theta.solver.z3.Z3SolverFactory;
 import hu.bme.mit.theta.xta.XtaSystem;
-import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.combinedlazycegar.CombinedLazyCegarXtaCheckerConfigFactory;
 import hu.bme.mit.theta.xta.analysis.lazy.*;
 import hu.bme.mit.theta.xta.dsl.XtaDslManager;
-import hu.bme.mit.theta.xta.learning.XtaLearningCheckerConfig;
-import hu.bme.mit.theta.xta.learning.XtaLearningCheckerConfigFactory;
-import hu.bme.mit.theta.xta.learning.compositional.modelchecking.DiscreteCompositionCheckerFactory;
-import hu.bme.mit.theta.xta.learning.algorithm.LearningAlgorithmType;
+import hu.bme.mit.theta.analysis.algorithm.compositional.learning.AssumptionLearner;
+import hu.bme.mit.theta.xta.analysis.config.XtaCompositionalConfigBuilder;
+import hu.bme.mit.theta.xta.analysis.config.XtaConfigBuilder;
 import hu.bme.mit.theta.xta.utils.CTLOperatorNotSupportedException;
 import hu.bme.mit.theta.xta.utils.MixedDataTimeNotSupportedException;
 
@@ -112,49 +110,38 @@ public final class XtaCli {
 	boolean noArgCexCheck = false;
 
 	///  Learning algorithm parameters
-	@Parameter(names = {"--learner", "-l"}, description = "Active learning algorithm (LSTAR, TTT, KandV)")
-	LearningAlgorithmType learnerAlgorithm = LearningAlgorithmType.TTT;
+	@Parameter(names = {"--learner", "-l"}, description = "Active learning algorithm")
+	AssumptionLearner.LearningAlgorithmType learnerAlgorithm = AssumptionLearner.LearningAlgorithmType.TTT;
 
 	@Parameter(names = {"--learning-dataDomain"}, description = "Abstract domain for data")
-	XtaLearningCheckerConfigFactory.DataDomain learningDataDomain =
-			XtaLearningCheckerConfigFactory.DataDomain.EXPL;
+	XtaCompositionalConfigBuilder.DataDomain learningDataDomain = XtaCompositionalConfigBuilder.DataDomain.EXPL;
 
 	@Parameter(names = "--learning-predsplit", description = "Predicate splitting (for predicate abstraction)")
-	XtaLearningCheckerConfigFactory.PredSplit learningPredSplit =
-			XtaLearningCheckerConfigFactory.PredSplit.ATOMS;
+	XtaConfigBuilder.PredSplit learningPredSplit = XtaConfigBuilder.PredSplit.ATOMS;
 
 	@Parameter(names = {"--learning-dataRefinement"}, description = "Data refinement strategy")
-	XtaLearningCheckerConfigFactory.Refinement learningRefinement =
-			XtaLearningCheckerConfigFactory.Refinement.SEQ_ITP;
+	XtaCompositionalConfigBuilder.Refinement learningRefinement = XtaCompositionalConfigBuilder.Refinement.SEQ_ITP;
 
 	@Parameter(names = {"--learning-initprec"}, description = "Initial precision of the data side")
-	XtaLearningCheckerConfigFactory.InitPrec learningInitPrec =
-			XtaLearningCheckerConfigFactory.InitPrec.ALL_DATA;
+	XtaCompositionalConfigBuilder.InitPrec learningInitPrec = XtaCompositionalConfigBuilder.InitPrec.ALL_DATA;
 
 	@Parameter(names = "--learning-maxenum", description = "Maximal number of explicitly enumerated successors")
 	Integer learningMaxEnum = 250;
 
-	@Parameter(names = "--learning-maxlearning", description = "Maximal number of hypothesis refinements per outer iteration")
-	Integer learningMaxLearningIterations = 10000;
-
-	@Parameter(names = "--learning-maxouter", description = "Maximal number of outer iterations")
-	Integer learningMaxOuterIterations = 1000;
-
-	@Parameter(names = "--learning-inclusionsearch", description = "Search strategy of the inclusion oracle")
-	XtaLearningCheckerConfig.InclusionSearchStrategy learningInclusionSearch =
-			XtaLearningCheckerConfig.InclusionSearchStrategy.BFS;
+	@Parameter(names = "--learning-inclusionsearch", description = "Search strategy of the inclusion check")
+	SearchStrategy learningInclusionSearch = SearchStrategy.BFS;
 
 	@Parameter(names = "--learning-prunestrategy", description = "Strategy for pruning the composition ARG after refinement")
 	PruneStrategy learningPruneStrategy = PruneStrategy.FULL;
 
-	@Parameter(names = "--learning-clockprec", description = "Clocks and process locations tracked by the learned timing (ALL; REFINED: whole clocks grown from spurious counterexamples; ATOMS: individual clock constraints grown the same way)")
-	XtaLearningCheckerConfigFactory.ClockPrec learningClockPrec = XtaLearningCheckerConfigFactory.ClockPrec.ALL;
+	@Parameter(names = "--learning-tracked-clocks", description = "Timing the learned assumption is built over: ALL clocks and locations, a NECESSARY_SUBSET of whole clocks and process locations, or NECESSARY_CONSTRAINTS: single clock constraints (conjuncts of guards and invariants, e.g. x < 5) and process locations; the last two grow from counterexamples")
+	XtaCompositionalConfigBuilder.TrackedClocks learningTrackedClocks = XtaCompositionalConfigBuilder.TrackedClocks.ALL;
 
-	@Parameter(names = "--learning-subsumption", description = "LU subsumption in the inclusion oracle (recommended with --learning-clockprec ATOMS)")
+	@Parameter(names = "--learning-subsumption", description = "LU subsumption in the inclusion check (recommended with --learning-tracked-clocks NECESSARY_CONSTRAINTS)")
 	boolean learningSubsumption = false;
 
-	@Parameter(names = "--learning-atom-batching", description = "With --learning-clockprec ATOMS: a new upper bound on a clock brings every location invariant over that clock along")
-	boolean learningAtomBatching = false;
+	@Parameter(names = "--learning-invariant-batching", description = "With --learning-tracked-clocks NECESSARY_CONSTRAINTS: a new upper bound on a clock brings every location invariant over that clock along")
+	boolean learningInvariantBatching = false;
 	/// Common algorithm parameters
 
 	@Parameter(names = {"--clock", "-c"}, description = "Refinement strategy for clock variables", required = false)
@@ -267,24 +254,19 @@ public final class XtaCli {
 	}
 
 	private void runLearning(final XtaSystem system) {
-		final var config = XtaLearningCheckerConfigFactory.create(system)
-				.learningAlgorithmType(learnerAlgorithm)
-				.dataDomain(learningDataDomain)
+		final var config = new XtaCompositionalConfigBuilder(learningDataDomain, learningRefinement, Z3SolverFactory.getInstance())
 				.predSplit(learningPredSplit)
-				.refinement(learningRefinement)
 				.initPrec(learningInitPrec)
 				.maxEnum(learningMaxEnum)
-				.maxLearningIterations(learningMaxLearningIterations)
-				.maxOuterIterations(learningMaxOuterIterations)
-				.inclusionSearchStrategy(learningInclusionSearch)
+				.search(searchStrategy)
 				.pruneStrategy(learningPruneStrategy)
-				.clockPrec(learningClockPrec)
+				.learningAlgorithmType(learnerAlgorithm)
+				.trackedClocks(learningTrackedClocks)
+				.inclusionSearch(learningInclusionSearch)
 				.inclusionSubsumption(learningSubsumption)
-				.atomBatching(learningAtomBatching)
+				.invariantBatching(learningInvariantBatching)
 				.logger(benchmarkMode ? NullLogger.getInstance() : new ConsoleLogger(logLevel))
-				.searchStrategy(DiscreteCompositionCheckerFactory.SearchStrategy
-						.valueOf(searchStrategy.name()))
-				.build();
+				.build(system);
 
 		final var result = config.check();
 		resultPrinter(result.isSafe(), result.isUnsafe(), system);
