@@ -44,17 +44,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * The zone semantics of the timing of an XTA system restricted to a {@link TimingPrec}: the
- * locations of the tracked processes and a zone over the tracked clocks, stepped by
- * {@link XtaClockProjection}s. Successors are cached per configuration and symbol.
- */
-public final class TimedStepper {
+
+public final class XtaTimedStepper {
 
     private static final int MAX_SLOTS = 8_000_000;
     private static final int MIN_CACHE_ENTRIES = 1024;
 
-    private final TimingPrec prec;
+    private final XtaTimingPrec prec;
     private final ClockBounds bounds;
     private final List<VarDecl<ClockType>> clocks;
     private final boolean[] trackedProcess;
@@ -66,7 +62,7 @@ public final class TimedStepper {
     private final Map<Config, List<Optional<Config>>> succCache;
     private int maxCacheEntries;
 
-    private TimedStepper(final XtaSystem system, final TimingPrec prec) {
+    private XtaTimedStepper(final XtaSystem system, final XtaTimingPrec prec) {
         this.prec = checkNotNull(prec);
         final List<XtaProcess> processes = system.getProcesses();
         this.trackedProcess = new boolean[processes.size()];
@@ -94,11 +90,11 @@ public final class TimedStepper {
         };
     }
 
-    public static TimedStepper create(final XtaSystem system, final TimingPrec prec) {
-        return new TimedStepper(checkNotNull(system), prec);
+    public static XtaTimedStepper create(final XtaSystem system, final XtaTimingPrec prec) {
+        return new XtaTimedStepper(checkNotNull(system), prec);
     }
 
-    public TimingPrec getPrec() {
+    public XtaTimingPrec getPrec() {
         return prec;
     }
 
@@ -106,7 +102,6 @@ public final class TimedStepper {
         return bounds;
     }
 
-    /** The symbol of an action: the clock parts of its edges under the precision. */
     public XtaClockProjection project(final XtaAction action) {
         final List<EdgeClock> projection = new ArrayList<>();
         for (final Edge edge : edgesOf(action)) {
@@ -127,7 +122,6 @@ public final class TimedStepper {
         return new Config(initialLocs, builder.build());
     }
 
-    /** The successor of a configuration by a symbol, if the symbol is enabled. */
     public Optional<Config> step(final Config from, final XtaClockProjection symbol) {
         final int index = symbolIndex.computeIfAbsent(symbol, s -> {
             maxCacheEntries = Math.max(MIN_CACHE_ENTRIES, MAX_SLOTS / (symbolIndex.size() + 1));
@@ -214,7 +208,7 @@ public final class TimedStepper {
                 updates);
     }
 
-    private static List<ClockConstr> clockInvariantsOf(final Loc loc, final TimingPrec prec) {
+    private static List<ClockConstr> clockInvariantsOf(final Loc loc, final XtaTimingPrec prec) {
         final List<ClockConstr> result = new ArrayList<>();
         for (final Guard invariant : loc.getInvars()) {
             if (invariant.isClockGuard()) {
@@ -224,8 +218,7 @@ public final class TimedStepper {
         return List.copyOf(result);
     }
 
-    /** The tracked clock guards of every edge and the invariants of the tracked processes. */
-    private static List<ClockConstr> clockConstrs(final XtaSystem system, final TimingPrec prec) {
+    private static List<ClockConstr> clockConstrs(final XtaSystem system, final XtaTimingPrec prec) {
         final List<ClockConstr> result = new ArrayList<>();
         for (final XtaProcess process : system.getProcesses()) {
             for (final Edge edge : process.getEdges()) {
@@ -260,7 +253,6 @@ public final class TimedStepper {
         throw new AssertionError(String.format("Unknown action kind: %s", action.getClass().getSimpleName()));
     }
 
-    /** A configuration of the tracked timing: the locations of every process and a zone. */
     public static final class Config implements State {
 
         private final List<Loc> locs;

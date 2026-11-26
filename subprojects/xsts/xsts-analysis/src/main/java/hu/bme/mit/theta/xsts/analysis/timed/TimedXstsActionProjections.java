@@ -17,11 +17,14 @@
 package hu.bme.mit.theta.xsts.analysis.timed;
 
 import hu.bme.mit.theta.common.Tuple2;
+import hu.bme.mit.theta.core.clock.constr.AtomicConstr;
+import hu.bme.mit.theta.core.clock.constr.ClockConstrs;
 import hu.bme.mit.theta.core.decl.VarDecl;
 import hu.bme.mit.theta.core.stmt.*;
 import hu.bme.mit.theta.core.type.Expr;
 import hu.bme.mit.theta.core.type.Type;
 import hu.bme.mit.theta.core.type.booltype.BoolType;
+import hu.bme.mit.theta.core.type.clocktype.ClockConstraintExpr;
 import hu.bme.mit.theta.core.type.clocktype.ClockType;
 import hu.bme.mit.theta.core.utils.ExprUtils;
 import hu.bme.mit.theta.core.utils.StmtContainsTimingVisitor;
@@ -33,22 +36,28 @@ import static hu.bme.mit.theta.core.stmt.Stmts.Assume;
 
 public class TimedXstsActionProjections {
 
-    private final Map<XstsAction, XstsAction> dataProjections;
-    private final Map<XstsAction, XstsAction> clockProjections;
+    private final Map<XstsAction, XstsAction> dataProjections = new HashMap<>();
+    private final Map<XstsAction, XstsAction> clockProjections = new HashMap<>();
     private final List<VarDecl<ClockType>> trackedClocks;
+    private final List<AtomicConstr> trackedConstraints;
 
-    private TimedXstsActionProjections(final List<VarDecl<ClockType>> trackedClocks) {
-        dataProjections = new HashMap<>();
-        clockProjections = new HashMap<>();
+    private TimedXstsActionProjections(final List<VarDecl<ClockType>> trackedClocks,
+                                       final List<AtomicConstr> trackedConstraints) {
         this.trackedClocks = trackedClocks;
+        this.trackedConstraints = trackedConstraints;
     }
 
     public static TimedXstsActionProjections create() {
-        return new TimedXstsActionProjections(null);
+        return new TimedXstsActionProjections(null, null);
     }
 
-    public static TimedXstsActionProjections create(Collection<VarDecl<ClockType>> trackedClocks) {
-        return new TimedXstsActionProjections(List.copyOf(trackedClocks));
+    public static TimedXstsActionProjections createForClockTracking(final Collection<VarDecl<ClockType>> trackedClocks) {
+        return new TimedXstsActionProjections(List.copyOf(trackedClocks), null);
+    }
+
+    public static TimedXstsActionProjections createForClockConstraintsTracking(
+            final Collection<? extends AtomicConstr> trackedConstraints) {
+        return new TimedXstsActionProjections(null, List.copyOf(trackedConstraints));
     }
 
     public XstsAction dataProjection(final XstsAction action) {
@@ -75,7 +84,7 @@ public class TimedXstsActionProjections {
         final Tuple2<List<Stmt>, List<Stmt>> projections = Tuple2.of(dataStmts, clockStmts);
 
         for (final Stmt stmt : action.getStmts()) {
-            stmt.accept(new ProjectionVisitor(trackedClocks), projections);
+            stmt.accept(new ProjectionVisitor(trackedClocks, trackedConstraints), projections);
         }
 
         dataProjections.put(action, XstsAction.create(dataStmts));
@@ -112,9 +121,11 @@ public class TimedXstsActionProjections {
 
     private static class ProjectionVisitor implements StmtVisitor<Tuple2<List<Stmt>, List<Stmt>>, Void> {
         private final List<VarDecl<ClockType>> trackedClocks;
+        private final List<AtomicConstr> trackedConstraints;
 
-        public ProjectionVisitor(final List<VarDecl<ClockType>> trackedClocks) {
+        public ProjectionVisitor(final List<VarDecl<ClockType>> trackedClocks, final List<AtomicConstr> trackedConstraints) {
             this.trackedClocks = trackedClocks;
+            this.trackedConstraints = trackedConstraints;
         }
 
         private boolean tracks(final Collection<VarDecl<?>> clocks) {
@@ -122,6 +133,28 @@ public class TimedXstsActionProjections {
                 return true;
             }
             return trackedClocks.containsAll(clocks);
+        }
+
+        private boolean tracksConstraint(final Expr<BoolType> cond, final Collection<VarDecl<?>> vars) {
+            if (trackedConstraints == null) {
+                return tracks(vars);
+            }
+            return cond instanceof ClockConstraintExpr clockExpr
+                    && trackedConstraints.contains(ClockConstrs.fromClockExpr(clockExpr));
+        }
+
+        private boolean tracksClock(final VarDecl<ClockType> clock) {
+            if (trackedConstraints == null) {
+                return tracks(List.of(clock));
+            }
+            return trackedConstraints.stream().anyMatch(constraint -> constraint.getVars().contains(clock));
+        }
+
+        private boolean tracksAnyClock() {
+            if (trackedConstraints != null) {
+                return !trackedConstraints.isEmpty();
+            }
+            return trackedClocks == null || !trackedClocks.isEmpty();
         }
 
         @Override
@@ -138,7 +171,7 @@ public class TimedXstsActionProjections {
                 if (clocksCnt == 0) {
                     addDataStmt(Assume(cond), projections);
                 } else if (clocksCnt == varsCnt) {
-                    if (tracks(vars)) {
+                    if (tracksConstraint(cond, vars)) {
                         addClockStmt(Assume(cond), projections);
                     }
                 } else {
@@ -200,7 +233,7 @@ public class TimedXstsActionProjections {
 
         @Override
         public Void visit(DelayStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
-            if (trackedClocks == null || !trackedClocks.isEmpty()) {
+            if (tracksAnyClock()) {
                 addClockStmt(stmt, projections);
             }
             return null;
@@ -208,7 +241,7 @@ public class TimedXstsActionProjections {
 
         @Override
         public Void visit(ResetStmt stmt, Tuple2<List<Stmt>, List<Stmt>> projections) {
-            if (tracks(List.of(stmt.getClockDecl()))) {
+            if (tracksClock(stmt.getClockDecl())) {
                 addClockStmt(stmt, projections);
             }
             return null;

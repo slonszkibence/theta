@@ -77,8 +77,8 @@ import hu.bme.mit.theta.xta.analysis.XtaAction;
 import hu.bme.mit.theta.xta.analysis.XtaAnalysis;
 import hu.bme.mit.theta.xta.analysis.XtaLts;
 import hu.bme.mit.theta.xta.analysis.XtaState;
-import hu.bme.mit.theta.xta.analysis.compositional.TimingPrec;
-import hu.bme.mit.theta.xta.analysis.compositional.TimingPrecRefiner;
+import hu.bme.mit.theta.xta.analysis.compositional.XtaTimingPrec;
+import hu.bme.mit.theta.xta.analysis.compositional.XtaTimingPrecRefiner;
 import hu.bme.mit.theta.xta.analysis.compositional.XtaClockProjection;
 import hu.bme.mit.theta.xta.analysis.compositional.XtaDataExprTraceChecker;
 import hu.bme.mit.theta.xta.analysis.compositional.XtaDataProjection;
@@ -271,18 +271,18 @@ public final class XtaCompositionalConfigBuilder {
                 UnitPrec.getInstance());
     }
 
-    private TimingPrec initialTimingPrec(final XtaSystem system) {
+    private XtaTimingPrec initialTimingPrec(final XtaSystem system) {
         return switch (trackedClocks) {
-            case ALL -> TimingPrec.all(system);
-            case NECESSARY_SUBSET -> TimingPrec.empty();
-            case NECESSARY_CONSTRAINTS -> TimingPrec.emptyClockConstraints();
+            case ALL -> XtaTimingPrec.all(system);
+            case NECESSARY_SUBSET -> XtaTimingPrec.empty();
+            case NECESSARY_CONSTRAINTS -> XtaTimingPrec.emptyClockConstraints();
         };
     }
 
-    private TimingPrecRefiner timingPrecRefiner(final XtaSystem system) {
+    private XtaTimingPrecRefiner timingPrecRefiner(final XtaSystem system) {
         return trackedClocks == TrackedClocks.NECESSARY_CONSTRAINTS
-                ? TimingPrecRefiner.createForClockConstraints(system, invariantBatching)
-                : TimingPrecRefiner.create(system);
+                ? XtaTimingPrecRefiner.createForClockConstraints(system, invariantBatching)
+                : XtaTimingPrecRefiner.create(system);
     }
 
     private ExprTraceChecker<ItpRefutation> createTraceChecker() {

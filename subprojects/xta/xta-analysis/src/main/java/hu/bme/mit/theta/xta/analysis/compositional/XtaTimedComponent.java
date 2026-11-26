@@ -37,23 +37,23 @@ import java.util.function.Function;
 public final class XtaTimedComponent implements LearnedComponent<XtaAction, XtaClockProjection> {
 
     private final ActionToSymbol<XtaAction, XtaClockProjection> actionToSymbol;
-    private final MembershipOracle<TimedStepper.Config, XtaClockProjection, TimingPrec> membershipOracle;
-    private final InclusionOracle<TimedStepper.Config, XtaClockProjection, TimingPrec> equivalenceOracle;
-    private final RealizabilityChecker<TimingPrec, XtaAction, XtaClockProjection> realizabilityChecker;
+    private final MembershipOracle<XtaTimedStepper.Config, XtaClockProjection, XtaTimingPrec> membershipOracle;
+    private final InclusionOracle<XtaTimedStepper.Config, XtaClockProjection, XtaTimingPrec> equivalenceOracle;
+    private final RealizabilityChecker<XtaTimingPrec, XtaAction, XtaClockProjection> realizabilityChecker;
 
     private XtaTimedComponent(
             final XtaSystem system,
-            final TimingPrec prec,
-            final CexToPrec<TimingPrec, XtaAction> cexToPrec,
+            final XtaTimingPrec prec,
+            final CexToPrec<XtaTimingPrec, XtaAction> cexToPrec,
             final SearchStrategy searchStrategy,
             final boolean subsumption,
             final Logger logger) {
         checkNotNull(system);
         checkNotNull(cexToPrec);
-        final TimedStepper stepper = TimedStepper.create(system, prec);
+        final XtaTimedStepper stepper = XtaTimedStepper.create(system, prec);
         final XtaTimingAnalysis analysis = XtaTimingAnalysis.create(stepper, subsumption);
-        final Function<TimedStepper.Config, ?> projection =
-                subsumption ? TimedStepper.Config::getLocs : config -> config;
+        final Function<XtaTimedStepper.Config, ?> projection =
+                subsumption ? XtaTimedStepper.Config::getLocs : config -> config;
 
         this.actionToSymbol = action -> Optional.of(stepper.project(action));
         this.membershipOracle = MembershipOracle.create(analysis, prec);
@@ -63,11 +63,11 @@ public final class XtaTimedComponent implements LearnedComponent<XtaAction, XtaC
                 .logger(logger)
                 .build();
 
-        final TimingPrec fullPrec = TimingPrec.all(system);
+        final XtaTimingPrec fullPrec = XtaTimingPrec.all(system);
         if (prec.equals(fullPrec)) {
             this.realizabilityChecker = RealizabilityChecker.create(actionToSymbol, membershipOracle);
         } else {
-            final TimedStepper fullStepper = TimedStepper.create(system, fullPrec);
+            final XtaTimedStepper fullStepper = XtaTimedStepper.create(system, fullPrec);
             this.realizabilityChecker = RealizabilityChecker.create(
                     action -> Optional.of(fullStepper.project(action)),
                     MembershipOracle.create(XtaTimingAnalysis.create(fullStepper, false), fullPrec),
@@ -82,8 +82,8 @@ public final class XtaTimedComponent implements LearnedComponent<XtaAction, XtaC
 
     public static XtaTimedComponent create(
             final XtaSystem system,
-            final TimingPrec prec,
-            final CexToPrec<TimingPrec, XtaAction> cexToPrec,
+            final XtaTimingPrec prec,
+            final CexToPrec<XtaTimingPrec, XtaAction> cexToPrec,
             final SearchStrategy searchStrategy,
             final boolean subsumption,
             final Logger logger) {
@@ -96,12 +96,12 @@ public final class XtaTimedComponent implements LearnedComponent<XtaAction, XtaC
     }
 
     @Override
-    public MembershipOracle<TimedStepper.Config, XtaClockProjection, TimingPrec> getMembershipOracle() {
+    public MembershipOracle<XtaTimedStepper.Config, XtaClockProjection, XtaTimingPrec> getMembershipOracle() {
         return membershipOracle;
     }
 
     @Override
-    public InclusionOracle<TimedStepper.Config, XtaClockProjection, TimingPrec> getEquivalenceOracle() {
+    public InclusionOracle<XtaTimedStepper.Config, XtaClockProjection, XtaTimingPrec> getEquivalenceOracle() {
         return equivalenceOracle;
     }
 

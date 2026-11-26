@@ -66,7 +66,6 @@ import hu.bme.mit.theta.analysis.prod2.prod2explpred.Prod2ExplPredStateValuation
 import hu.bme.mit.theta.analysis.prod2.prod2explpred.Prod2ExplPredStrengtheningOperator;
 import hu.bme.mit.theta.analysis.unit.UnitPrec;
 import hu.bme.mit.theta.analysis.utils.ValuationExtractor;
-import hu.bme.mit.theta.analysis.zone.ZonePrec;
 import hu.bme.mit.theta.common.logging.Logger;
 import hu.bme.mit.theta.core.decl.VarDecl;
 import hu.bme.mit.theta.core.type.Expr;
@@ -82,13 +81,16 @@ import hu.bme.mit.theta.xsts.analysis.compositional.ClockPrecRefiner;
 import hu.bme.mit.theta.xsts.analysis.config.TimedXstsConfigBuilder.ControlFlowSplitting;
 import hu.bme.mit.theta.xsts.analysis.compositional.XstsDataExprTraceChecker;
 import hu.bme.mit.theta.xsts.analysis.compositional.XstsTimedComponent;
+import hu.bme.mit.theta.xsts.analysis.compositional.XstsTimingPrec;
 import hu.bme.mit.theta.xsts.analysis.initprec.XstsInitPrec;
 import hu.bme.mit.theta.xsts.analysis.timed.ControlFlowSplitXstsLts;
 import hu.bme.mit.theta.xsts.analysis.timed.TimedXstsActionProjections;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -98,7 +100,8 @@ public final class XstsCompositionalConfigBuilder {
 
     public enum TrackedClocks {
         ALL,
-        NECESSARY_SUBSET
+        NECESSARY_SUBSET,
+        NECESSARY_CONSTRAINTS
     }
 
     private final XstsConfigBuilder xstsConfig;
@@ -225,12 +228,16 @@ public final class XstsCompositionalConfigBuilder {
                     return unitPrec -> cegarChecker.check(initPrec);
                 };
 
-        final ZonePrec zonePrec = switch (trackedClocks) {
-            case ALL -> ZonePrec.of(clocks);
-            case NECESSARY_SUBSET -> ZonePrec.of(List.of());
+        final XstsTimingPrec timingPrec = switch (trackedClocks) {
+            case ALL -> XstsTimingPrec.of(new LinkedHashSet<>(clocks));
+            case NECESSARY_SUBSET -> XstsTimingPrec.of(Set.of());
+            case NECESSARY_CONSTRAINTS -> XstsTimingPrec.emptyClockConstraints();
         };
+        final ClockPrecRefiner clockPrecRefiner = trackedClocks == TrackedClocks.NECESSARY_CONSTRAINTS
+                ? ClockPrecRefiner.createForClockConstraints(clocks)
+                : ClockPrecRefiner.create(clocks);
         final XstsTimedComponent component = XstsTimedComponent.create(
-                clocks, zonePrec, ClockPrecRefiner.create(clocks), searchStrategy, logger);
+                clocks, timingPrec, clockPrecRefiner, searchStrategy, logger);
         return XstsConfig.create(
                 CompositionalChecker.create(component, checkerFactory, learningAlgorithmType, logger),
                 UnitPrec.getInstance());

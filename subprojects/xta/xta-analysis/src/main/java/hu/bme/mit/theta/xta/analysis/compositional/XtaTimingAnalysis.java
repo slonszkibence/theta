@@ -27,39 +27,39 @@ import hu.bme.mit.theta.analysis.zone.ClockBounds;
 import java.util.List;
 
 public final class XtaTimingAnalysis
-        implements Analysis<TimedStepper.Config, SymbolAction<XtaClockProjection>, TimingPrec> {
+        implements Analysis<XtaTimedStepper.Config, SymbolAction<XtaClockProjection>, XtaTimingPrec> {
 
-    private final PartialOrd<TimedStepper.Config> partialOrd;
-    private final InitFunc<TimedStepper.Config, TimingPrec> initFunc;
-    private final TransFunc<TimedStepper.Config, SymbolAction<XtaClockProjection>, TimingPrec> transFunc;
+    private final PartialOrd<XtaTimedStepper.Config> partialOrd;
+    private final InitFunc<XtaTimedStepper.Config, XtaTimingPrec> initFunc;
+    private final TransFunc<XtaTimedStepper.Config, SymbolAction<XtaClockProjection>, XtaTimingPrec> transFunc;
 
-    private XtaTimingAnalysis(final TimedStepper stepper, final boolean subsumption) {
+    private XtaTimingAnalysis(final XtaTimedStepper stepper, final boolean subsumption) {
         checkNotNull(stepper);
         final ClockBounds bounds = stepper.getBounds();
         this.partialOrd = subsumption
                 ? (config, that) -> config.getLocs().equals(that.getLocs())
                         && bounds.isLeq(config.getZone(), that.getZone())
-                : TimedStepper.Config::equals;
+                : XtaTimedStepper.Config::equals;
         this.initFunc = prec -> List.of(stepper.initial());
         this.transFunc = (config, action, prec) -> stepper.step(config, action.getSymbol()).stream().toList();
     }
 
-    public static XtaTimingAnalysis create(final TimedStepper stepper, final boolean subsumption) {
+    public static XtaTimingAnalysis create(final XtaTimedStepper stepper, final boolean subsumption) {
         return new XtaTimingAnalysis(stepper, subsumption);
     }
 
     @Override
-    public PartialOrd<TimedStepper.Config> getPartialOrd() {
+    public PartialOrd<XtaTimedStepper.Config> getPartialOrd() {
         return partialOrd;
     }
 
     @Override
-    public InitFunc<TimedStepper.Config, TimingPrec> getInitFunc() {
+    public InitFunc<XtaTimedStepper.Config, XtaTimingPrec> getInitFunc() {
         return initFunc;
     }
 
     @Override
-    public TransFunc<TimedStepper.Config, SymbolAction<XtaClockProjection>, TimingPrec> getTransFunc() {
+    public TransFunc<XtaTimedStepper.Config, SymbolAction<XtaClockProjection>, XtaTimingPrec> getTransFunc() {
         return transFunc;
     }
 }

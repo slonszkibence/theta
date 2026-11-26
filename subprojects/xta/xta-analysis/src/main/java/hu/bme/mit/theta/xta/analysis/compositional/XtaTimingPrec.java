@@ -40,13 +40,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-public final class TimingPrec implements Prec {
+public final class XtaTimingPrec implements Prec {
 
     private final Set<VarDecl<ClockType>> clocks;
     private final Set<XtaProcess> processes;
     private final Optional<Set<AtomicConstr>> clockConstraints;
 
-    private TimingPrec(
+    private XtaTimingPrec(
             final Set<VarDecl<ClockType>> clocks,
             final Set<XtaProcess> processes,
             final Optional<Set<AtomicConstr>> clockConstraints) {
@@ -55,28 +55,28 @@ public final class TimingPrec implements Prec {
         this.clockConstraints = checkNotNull(clockConstraints).map(Set::copyOf);
     }
 
-    public static TimingPrec of(final Set<VarDecl<ClockType>> clocks, final Set<XtaProcess> processes) {
-        return new TimingPrec(clocks, processes, Optional.empty());
+    public static XtaTimingPrec of(final Set<VarDecl<ClockType>> clocks, final Set<XtaProcess> processes) {
+        return new XtaTimingPrec(clocks, processes, Optional.empty());
     }
 
-    public static TimingPrec ofClockConstraints(
+    public static XtaTimingPrec ofClockConstraints(
             final Set<AtomicConstr> clockConstraints, final Set<XtaProcess> processes) {
         final Set<VarDecl<ClockType>> clocks = new LinkedHashSet<>();
         for (final AtomicConstr constraint : clockConstraints) {
             clocks.addAll(constraint.getVars());
         }
-        return new TimingPrec(clocks, processes, Optional.of(clockConstraints));
+        return new XtaTimingPrec(clocks, processes, Optional.of(clockConstraints));
     }
 
-    public static TimingPrec all(final XtaSystem system) {
+    public static XtaTimingPrec all(final XtaSystem system) {
         return of(new LinkedHashSet<>(system.getClockVars()), new LinkedHashSet<>(system.getProcesses()));
     }
 
-    public static TimingPrec empty() {
+    public static XtaTimingPrec empty() {
         return of(Set.of(), Set.of());
     }
 
-    public static TimingPrec emptyClockConstraints() {
+    public static XtaTimingPrec emptyClockConstraints() {
         return ofClockConstraints(Set.of(), Set.of());
     }
 
@@ -105,7 +105,6 @@ public final class TimingPrec implements Prec {
                 .orElseGet(() -> clocks.containsAll(constraint.getVars()));
     }
 
-    /** The clock constraints (conjuncts) of a guard or an invariant. */
     public static List<AtomicConstr> clockConstraintsOf(final ClockConstr constr) {
         if (constr instanceof AtomicConstr atomic) {
             return List.of(atomic);
@@ -116,7 +115,6 @@ public final class TimingPrec implements Prec {
         return List.of();
     }
 
-    /** The part of the constraint that is tracked, if any. */
     public Optional<ClockConstr> restrict(final ClockConstr constr) {
         if (clockConstraints.isEmpty() && clocks.containsAll(constr.getVars())) {
             return Optional.of(constr);
@@ -137,7 +135,6 @@ public final class TimingPrec implements Prec {
         return Optional.of(kept.size() == 1 ? kept.get(0) : ClockConstrs.And(kept));
     }
 
-    /** The part of the operation that is tracked, if any; a copy from an untracked clock frees the target. */
     public Optional<ClockOp> restrict(final ClockOp op) {
         if (clockConstraints.isPresent() && op instanceof GuardOp guard) {
             return restrict(guard.getConstr()).map(ClockOps::Guard);
@@ -164,7 +161,7 @@ public final class TimingPrec implements Prec {
         if (this == obj) {
             return true;
         }
-        return obj instanceof TimingPrec that
+        return obj instanceof XtaTimingPrec that
                 && clocks.equals(that.clocks)
                 && processes.equals(that.processes)
                 && clockConstraints.equals(that.clockConstraints);

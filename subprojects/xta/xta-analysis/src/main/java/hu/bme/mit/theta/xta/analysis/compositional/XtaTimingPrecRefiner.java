@@ -36,45 +36,45 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-public final class TimingPrecRefiner implements CexToPrec<TimingPrec, XtaAction> {
+public final class XtaTimingPrecRefiner implements CexToPrec<XtaTimingPrec, XtaAction> {
 
     private final XtaSystem system;
     private final boolean clockConstraintLevel;
     private final boolean batchInvariants;
 
-    private TimingPrecRefiner(final XtaSystem system, final boolean clockConstraintLevel, final boolean batchInvariants) {
+    private XtaTimingPrecRefiner(final XtaSystem system, final boolean clockConstraintLevel, final boolean batchInvariants) {
         this.system = checkNotNull(system);
         this.clockConstraintLevel = clockConstraintLevel;
         this.batchInvariants = batchInvariants;
     }
 
-    public static TimingPrecRefiner create(final XtaSystem system) {
-        return new TimingPrecRefiner(system, false, false);
+    public static XtaTimingPrecRefiner create(final XtaSystem system) {
+        return new XtaTimingPrecRefiner(system, false, false);
     }
 
-    public static TimingPrecRefiner createForClockConstraints(final XtaSystem system, final boolean batchInvariants) {
-        return new TimingPrecRefiner(system, true, batchInvariants);
+    public static XtaTimingPrecRefiner createForClockConstraints(final XtaSystem system, final boolean batchInvariants) {
+        return new XtaTimingPrecRefiner(system, true, batchInvariants);
     }
 
     @Override
-    public TimingPrec toPrec(final TimingPrec tracked, final List<XtaAction> cexActions) {
+    public XtaTimingPrec toPrec(final XtaTimingPrec tracked, final List<XtaAction> cexActions) {
         checkNotNull(tracked);
         checkNotNull(cexActions);
-        final TimingPrec refined = clockConstraintLevel ? refineClockConstraints(tracked, cexActions) : refineClocks(tracked, cexActions);
+        final XtaTimingPrec refined = clockConstraintLevel ? refineClockConstraints(tracked, cexActions) : refineClocks(tracked, cexActions);
         checkState(!refined.equals(tracked), "The counterexample is already infeasible under the tracked timing");
         return refined;
     }
 
-    private TimingPrec refineClocks(final TimingPrec tracked, final List<XtaAction> actions) {
+    private XtaTimingPrec refineClocks(final XtaTimingPrec tracked, final List<XtaAction> actions) {
         final Set<XtaProcess> processes = new LinkedHashSet<>(system.getProcesses());
         final Set<VarDecl<ClockType>> clocks = new LinkedHashSet<>(system.getClockVars());
-        checkState(!feasible(actions, TimingPrec.of(clocks, processes)),
+        checkState(!feasible(actions, XtaTimingPrec.of(clocks, processes)),
                 "The counterexample is realizable, so it needs no timing refinement");
 
         for (final XtaProcess process : List.copyOf(processes)) {
             if (!tracked.getProcesses().contains(process)) {
                 processes.remove(process);
-                if (feasible(actions, TimingPrec.of(clocks, processes))) {
+                if (feasible(actions, XtaTimingPrec.of(clocks, processes))) {
                     processes.add(process);
                 }
             }
@@ -82,25 +82,25 @@ public final class TimingPrecRefiner implements CexToPrec<TimingPrec, XtaAction>
         for (final VarDecl<ClockType> clock : List.copyOf(clocks)) {
             if (!tracked.getClocks().contains(clock)) {
                 clocks.remove(clock);
-                if (feasible(actions, TimingPrec.of(clocks, processes))) {
+                if (feasible(actions, XtaTimingPrec.of(clocks, processes))) {
                     clocks.add(clock);
                 }
             }
         }
-        return TimingPrec.of(clocks, processes);
+        return XtaTimingPrec.of(clocks, processes);
     }
 
-    private TimingPrec refineClockConstraints(final TimingPrec tracked, final List<XtaAction> actions) {
+    private XtaTimingPrec refineClockConstraints(final XtaTimingPrec tracked, final List<XtaAction> actions) {
         final Set<XtaProcess> processes = new LinkedHashSet<>(system.getProcesses());
         final Set<AtomicConstr> constraints = new LinkedHashSet<>(tracked.getClockConstraints());
         constraints.addAll(clockConstraintsAlong(actions));
-        checkState(!feasible(actions, TimingPrec.ofClockConstraints(constraints, processes)),
+        checkState(!feasible(actions, XtaTimingPrec.ofClockConstraints(constraints, processes)),
                 "The counterexample is realizable, so it needs no timing refinement");
 
         for (final XtaProcess process : List.copyOf(processes)) {
             if (!tracked.getProcesses().contains(process)) {
                 processes.remove(process);
-                if (feasible(actions, TimingPrec.ofClockConstraints(constraints, processes))) {
+                if (feasible(actions, XtaTimingPrec.ofClockConstraints(constraints, processes))) {
                     processes.add(process);
                 }
             }
@@ -108,7 +108,7 @@ public final class TimingPrecRefiner implements CexToPrec<TimingPrec, XtaAction>
         for (final AtomicConstr constraint : List.copyOf(constraints)) {
             if (!tracked.getClockConstraints().contains(constraint)) {
                 constraints.remove(constraint);
-                if (feasible(actions, TimingPrec.ofClockConstraints(constraints, processes))) {
+                if (feasible(actions, XtaTimingPrec.ofClockConstraints(constraints, processes))) {
                     constraints.add(constraint);
                 }
             }
@@ -116,10 +116,10 @@ public final class TimingPrecRefiner implements CexToPrec<TimingPrec, XtaAction>
         if (batchInvariants) {
             addInvariantsOfBoundedClocks(constraints, tracked);
         }
-        return TimingPrec.ofClockConstraints(constraints, processes);
+        return XtaTimingPrec.ofClockConstraints(constraints, processes);
     }
 
-    private void addInvariantsOfBoundedClocks(final Set<AtomicConstr> constraints, final TimingPrec tracked) {
+    private void addInvariantsOfBoundedClocks(final Set<AtomicConstr> constraints, final XtaTimingPrec tracked) {
         final Set<AtomicConstr> upperBounds = new LinkedHashSet<>();
         for (final AtomicConstr constraint : constraints) {
             if (!tracked.getClockConstraints().contains(constraint) && (constraint instanceof UnitLeqConstr || constraint instanceof UnitLtConstr)) {
@@ -153,10 +153,10 @@ public final class TimingPrecRefiner implements CexToPrec<TimingPrec, XtaAction>
             for (final Loc loc : action.getSourceLocs()) {
                 addInvariantConstraints(result, loc);
             }
-            for (final Edge edge : TimedStepper.edgesOf(action)) {
+            for (final Edge edge : XtaTimedStepper.edgesOf(action)) {
                 for (final Guard guard : edge.getGuards()) {
                     if (guard.isClockGuard()) {
-                        result.addAll(TimingPrec.clockConstraintsOf(guard.asClockGuard().getClockConstr()));
+                        result.addAll(XtaTimingPrec.clockConstraintsOf(guard.asClockGuard().getClockConstr()));
                     }
                 }
             }
@@ -170,14 +170,14 @@ public final class TimingPrecRefiner implements CexToPrec<TimingPrec, XtaAction>
     private static void addInvariantConstraints(final Set<AtomicConstr> result, final Loc loc) {
         for (final Guard invariant : loc.getInvars()) {
             if (invariant.isClockGuard()) {
-                result.addAll(TimingPrec.clockConstraintsOf(invariant.asClockGuard().getClockConstr()));
+                result.addAll(XtaTimingPrec.clockConstraintsOf(invariant.asClockGuard().getClockConstr()));
             }
         }
     }
 
-    private boolean feasible(final List<XtaAction> actions, final TimingPrec prec) {
-        final TimedStepper stepper = TimedStepper.create(system, prec);
-        Optional<TimedStepper.Config> config = Optional.of(stepper.initial()).filter(c -> !c.isBottom());
+    private boolean feasible(final List<XtaAction> actions, final XtaTimingPrec prec) {
+        final XtaTimedStepper stepper = XtaTimedStepper.create(system, prec);
+        Optional<XtaTimedStepper.Config> config = Optional.of(stepper.initial()).filter(c -> !c.isBottom());
         for (final XtaAction action : actions) {
             if (config.isEmpty()) {
                 return false;

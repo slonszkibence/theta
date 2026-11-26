@@ -31,6 +31,7 @@ import hu.bme.mit.theta.analysis.algorithm.compositional.realizability.Realizabi
 import hu.bme.mit.theta.analysis.dfa.ActionToSymbol;
 import hu.bme.mit.theta.analysis.dfa.SymbolAction;
 import hu.bme.mit.theta.analysis.impl.ActionMappingAnalysis;
+import hu.bme.mit.theta.analysis.impl.PrecMappingAnalysis;
 import hu.bme.mit.theta.analysis.zone.ClockBounds;
 import hu.bme.mit.theta.analysis.zone.ZoneInitFunc;
 import hu.bme.mit.theta.analysis.zone.ZonePrec;
@@ -46,6 +47,7 @@ import hu.bme.mit.theta.xsts.analysis.timed.TimedXstsActionProjections;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,17 +55,17 @@ import de.learnlib.oracle.EquivalenceOracle;
 
 public final class XstsTimedComponent implements LearnedComponent<XstsAction, XstsAction> {
 
-    private final ZonePrec prec;
+    private final XstsTimingPrec prec;
     private final SearchStrategy searchStrategy;
     private final Logger logger;
     private final ActionToSymbol<XstsAction, XstsAction> actionToSymbol;
-    private final MembershipOracle<ZoneState, XstsAction, ZonePrec> membershipOracle;
-    private final RealizabilityChecker<ZonePrec, XstsAction, XstsAction> realizabilityChecker;
+    private final MembershipOracle<ZoneState, XstsAction, XstsTimingPrec> membershipOracle;
+    private final RealizabilityChecker<XstsTimingPrec, XstsAction, XstsAction> realizabilityChecker;
 
     private XstsTimedComponent(
             final Collection<? extends VarDecl<ClockType>> clocks,
-            final ZonePrec prec,
-            final CexToPrec<ZonePrec, XstsAction> cexToPrec,
+            final XstsTimingPrec prec,
+            final CexToPrec<XstsTimingPrec, XstsAction> cexToPrec,
             final SearchStrategy searchStrategy,
             final Logger logger) {
         final List<VarDecl<ClockType>> allClocks = List.copyOf(checkNotNull(clocks));
@@ -72,15 +74,15 @@ public final class XstsTimedComponent implements LearnedComponent<XstsAction, Xs
         this.logger = checkNotNull(logger);
         checkNotNull(cexToPrec);
 
-        this.actionToSymbol = clockProjection(TimedXstsActionProjections.create(prec.getVars()));
+        this.actionToSymbol = clockProjection(prec.toProjections());
         this.membershipOracle = MembershipOracle.create(zoneAnalysis(), prec);
 
-        if (prec.getVars().containsAll(allClocks)) {
+        if (!prec.tracksClockConstraints() && prec.getClocks().containsAll(allClocks)) {
             this.realizabilityChecker = RealizabilityChecker.create(actionToSymbol, membershipOracle);
         } else {
             this.realizabilityChecker = RealizabilityChecker.create(
                     clockProjection(TimedXstsActionProjections.create()),
-                    MembershipOracle.create(zoneAnalysis(), ZonePrec.of(allClocks)),
+                    MembershipOracle.create(zoneAnalysis(), XstsTimingPrec.of(new LinkedHashSet<>(allClocks))),
                     actionToSymbol,
                     membershipOracle,
                     prec,
@@ -91,8 +93,8 @@ public final class XstsTimedComponent implements LearnedComponent<XstsAction, Xs
 
     public static XstsTimedComponent create(
             final Collection<? extends VarDecl<ClockType>> clocks,
-            final ZonePrec prec,
-            final CexToPrec<ZonePrec, XstsAction> cexToPrec,
+            final XstsTimingPrec prec,
+            final CexToPrec<XstsTimingPrec, XstsAction> cexToPrec,
             final SearchStrategy searchStrategy,
             final Logger logger) {
         return new XstsTimedComponent(clocks, prec, cexToPrec, searchStrategy, logger);
@@ -104,15 +106,18 @@ public final class XstsTimedComponent implements LearnedComponent<XstsAction, Xs
     }
 
     @Override
-    public MembershipOracle<ZoneState, XstsAction, ZonePrec> getMembershipOracle() {
+    public MembershipOracle<ZoneState, XstsAction, XstsTimingPrec> getMembershipOracle() {
         return membershipOracle;
     }
 
     @Override
     public EquivalenceOracle.DFAEquivalenceOracle<XstsAction> getEquivalenceOracle() {
         return (hypothesis, inputs) -> {
-            final ClockBounds bounds = ClockBounds.fromStmts(prec.getVars(), stmtsOf(inputs));
-            return InclusionOracle.builder(NormalizedZoneAnalysis.create(bounds), prec, membershipOracle)
+            final ClockBounds bounds = ClockBounds.fromStmts(prec.getClocks(), stmtsOf(inputs));
+            return InclusionOracle.builder(
+                            PrecMappingAnalysis.create(NormalizedZoneAnalysis.create(bounds), XstsTimingPrec::toZonePrec),
+                            prec,
+                            membershipOracle)
                     .searchStrategy(searchStrategy)
                     .logger(logger)
                     .build()
@@ -133,8 +138,10 @@ public final class XstsTimedComponent implements LearnedComponent<XstsAction, Xs
         };
     }
 
-    private static Analysis<ZoneState, SymbolAction<XstsAction>, ZonePrec> zoneAnalysis() {
-        return ActionMappingAnalysis.create(ZoneStmtAnalysis.getInstance(), SymbolAction::getSymbol);
+    private static Analysis<ZoneState, SymbolAction<XstsAction>, XstsTimingPrec> zoneAnalysis() {
+        return PrecMappingAnalysis.create(
+                ActionMappingAnalysis.create(ZoneStmtAnalysis.getInstance(), SymbolAction::getSymbol),
+                XstsTimingPrec::toZonePrec);
     }
 
     private static List<Stmt> stmtsOf(final Collection<? extends XstsAction> actions) {
